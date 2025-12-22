@@ -16,29 +16,27 @@
 // Fonction pour lire les entrées utilisateurs (https://stackoverflow.com/questions/421860/capture-characters-from-standard-input-without-waiting-for-enter-to-be-pressed)
 char getch()
 {
-    char buf = 0;
-    struct termios old = {0};
-    if (tcgetattr(0, &old) < 0)
-        perror("tcsetattr()");
-    old.c_lflag &= ~ICANON;
-    old.c_lflag &= ~ECHO;
-    old.c_cc[VMIN] = 1;
-    old.c_cc[VTIME] = 0;
-    if (tcsetattr(0, TCSANOW, &old) < 0)
-        perror("tcsetattr ICANON");
-    if (read(0, &buf, 1) < 0)
-        perror("read()");
-    old.c_lflag |= ICANON;
-    old.c_lflag |= ECHO;
-    if (tcsetattr(0, TCSADRAIN, &old) < 0)
-        perror("tcsetattr ~ICANON");
-    return (buf);
+    char c;
+    struct termios oldt, newt;
+
+    tcgetattr(STDIN_FILENO, &oldt);  // sauvegarde
+    newt = oldt;
+    newt.c_lflag &= ~(ICANON | ECHO); // non canonique, pas d'écho
+    newt.c_cc[VMIN] = 1;
+    newt.c_cc[VTIME] = 0;
+    tcsetattr(STDIN_FILENO, TCSANOW, &newt);
+
+    read(STDIN_FILENO, &c, 1);
+
+    tcsetattr(STDIN_FILENO, TCSANOW, &oldt); // restauration
+    return c;
 }
+
 
 int main()
 {
     char *path = "/tmp/pipe_coup";
-    
+
     if (mkfifo(path, 0666) == -1 && errno != EEXIST) { 
         perror("mkfifo"); 
         return EXIT_FAILURE; 
