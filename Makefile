@@ -1,6 +1,5 @@
 CC = gcc
 CFLAGS = -Wall -Wextra -Werror -Iinclude -Wno-unused-parameter # -Wno-unused-variable
-SDL2_FLAGS = $(shell sdl2-config --cflags --libs)
 
 SRC := $(wildcard src/*.c)
 OBJ := $(SRC:src/%.c=build/%.o)
@@ -14,10 +13,10 @@ dirs:
 	mkdir -p build bin
 
 $(BIN): $(OBJ)
-	$(CC) $(CFLAGS) -o $@ $^ $(SDL2_FLAGS)
+	$(CC) $(CFLAGS) -o $@ $^
 
 build/%.o: src/%.c
-	$(CC) $(CFLAGS) -c $< -o $@ $(SDL2_FLAGS)
+	$(CC) $(CFLAGS) -c $< -o $@
 
 run: all
 	clear

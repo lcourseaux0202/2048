@@ -9,14 +9,9 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 
-#include <stdio.h>
-#include <termios.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <sys/stat.h>
-#include <stdlib.h>
+#include <termios.h> // Utilisé dans la fonction getch()
 
-// Fonction pour lire les entrées utilisateurs
+// Fonction pour lire les entrées utilisateurs (https://stackoverflow.com/questions/421860/capture-characters-from-standard-input-without-waiting-for-enter-to-be-pressed)
 char getch()
 {
     char buf = 0;
