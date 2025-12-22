@@ -1,4 +1,5 @@
 #include "macro.h"
+#include "game.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -8,6 +9,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
 
 #include <termios.h> // Utilisé dans la fonction getch()
 
@@ -36,24 +38,26 @@ char getch()
 int main()
 {
     char *path = "/tmp/pipe_coup";
-    mkfifo(path, 0666);
+    
+    if (mkfifo(path, 0666) == -1 && errno != EEXIST) { 
+        perror("mkfifo"); 
+        return EXIT_FAILURE; 
+    }
+
     int fd;
 
-    if (fork() == 0)
+    pid_t pid = fork();
+
+    if (pid == 0)
     {
         // fils : processus 2048
-        fd = open(path, O_RDONLY);
-        char c;
-        while (read(fd, &c, 1) > 0)
-        {
-            printf("\nMouvement : %c", c);
-        }
-        exit(EXIT_SUCCESS);
+        CHKERR(fd = open(path, O_RDONLY));
+        return proc_2048(fd);
     }
-    else
+    else if (pid > 0)
     {
         // père : entrées utilisateurs
-        fd = open(path, O_WRONLY);
+        CHKERR(fd = open(path, O_WRONLY));
         while (1)
         {
             char c = getch();
@@ -85,6 +89,12 @@ int main()
         }
         close(fd);
         unlink(path);
+        wait(NULL);
     }
-    return 0;
+    else
+    {
+        perror("fork");
+        return (EXIT_FAILURE);
+    }
+    return EXIT_SUCCESS;
 }
