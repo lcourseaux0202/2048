@@ -35,6 +35,7 @@ char getch()
 
 int main()
 {
+    // Création du pipe nommé
     char *path = "/tmp/pipe_coup";
 
     if (mkfifo(path, 0666) == -1 && errno != EEXIST) { 
@@ -44,55 +45,49 @@ int main()
 
     int fd;
 
-    pid_t pid = fork();
+    pid_t pid;
+    CHKERR(pid = fork());
 
-    if (pid == 0)
+    if (pid == 0) // Processus fils
     {
-        // fils : processus 2048
-        CHKERR(fd = open(path, O_RDONLY));
-        return proc_2048(fd);
+        // Lancement du moteur 2048
+        return proc_2048(path);
     }
-    else if (pid > 0)
+
+    // Processus père
+    CHKERR(fd = open(path, O_WRONLY));
+    // Boucle des entrées utilisateurs
+    while (1)
     {
-        // père : entrées utilisateurs
-        CHKERR(fd = open(path, O_WRONLY));
-        while (1)
+        char c = getch();
+        char dir = 0;
+        if (c == 27)
         {
-            char c = getch();
-            char dir = 0;
-            if (c == 27)
+            getch();
+            switch (getch())
             {
-                getch();
-                switch (getch())
-                {
-                case 'A':
-                    dir = 'u';
-                    break;
-                case 'B':
-                    dir = 'd';
-                    break;
-                case 'C':
-                    dir = 'r';
-                    break;
-                case 'D':
-                    dir = 'l';
-                    break;
-                }
-            }
-            else if (c == 'q')
+            case 'A':
+                dir = 'u';
                 break;
-
-            if (dir)
-                write(fd, &dir, 1);
+            case 'B':
+                dir = 'd';
+                break;
+            case 'C':
+                dir = 'r';
+                break;
+            case 'D':
+                dir = 'l';
+                break;
+            }
         }
-        close(fd);
-        unlink(path);
-        wait(NULL);
+        else if (c == 'q')
+            break;
+
+         if (dir)
+            write(fd, &dir, 1);
     }
-    else
-    {
-        perror("fork");
-        return (EXIT_FAILURE);
-    }
+    close(fd); // 
+    unlink(path); // Suppression du pipe
+    wait(NULL); // Attente du fils (Moteur 2048)
     return EXIT_SUCCESS;
 }

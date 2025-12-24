@@ -1,1 +1,1 @@
-int proc_2048(int fd);
+int proc_2048(char * path);
