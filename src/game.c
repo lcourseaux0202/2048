@@ -31,6 +31,12 @@ int proc_2048(char * path)
     // Processus père
     close(fdDisplay[0]); // Fermeture du pipe de lecture
 
+    // Création de la grille
+    int *grid; 
+    CHKNULL(grid = malloc(GRID_SIZE * GRID_SIZE * sizeof(int)));
+    
+    //int (*grid2D)[GRID_SIZE] = (int (*)[GRID_SIZE])grid; // Pointeur de manipulation [i][j]
+
     // Ouverture pipe nommé
     int fdInput;
     CHKERR(fdInput = open(path, O_RDONLY));
@@ -38,9 +44,12 @@ int proc_2048(char * path)
     // Création des threads
     pthread_t th_moveAndScore = 0, th_goal = 0;
 
-    pthread_create(&th_moveAndScore, NULL, func_moveAndScore, "MoveAndScore");
-    pthread_create(&th_goal, NULL, func_goal, "Goal");
+    pthread_create(&th_moveAndScore, NULL, func_moveAndScore, grid);
+    pthread_create(&th_goal, NULL, func_goal, grid);
 
+    // Thread Main
+
+    
     char c;
     while (read(fdInput, &c, 1) > 0)
     {
@@ -48,6 +57,7 @@ int proc_2048(char * path)
     }
 
     // Libération
+    free(grid);
     pthread_join(th_moveAndScore, NULL);
     pthread_join(th_goal, NULL);
     close(fdInput); // Fermeture du pipe nommé
@@ -57,9 +67,11 @@ int proc_2048(char * path)
 }
 
 void *func_moveAndScore (void * arg) {
+    int * grid = (int *)arg;
     return NULL;
 }
 
 void *func_goal (void * arg) {
+    int * grid = (int *)arg;
     return NULL;
 }

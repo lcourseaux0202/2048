@@ -11,7 +11,7 @@
 #define CHKNULL(op) do { \
     if((op) == NULL) { \
         perror(#op); \
-        return -1; \
+        return 0; \
     } \
 } while(0)
 
