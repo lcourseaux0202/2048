@@ -5,6 +5,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <fcntl.h>
+#include <sys/wait.h>
+#include <pthread.h>
 
 /*
 Fonction représentant le processus 2048
@@ -33,14 +35,31 @@ int proc_2048(char * path)
     int fdInput;
     CHKERR(fdInput = open(path, O_RDONLY));
 
+    // Création des threads
+    pthread_t th_moveAndScore = 0, th_goal = 0;
+
+    pthread_create(&th_moveAndScore, NULL, func_moveAndScore, "MoveAndScore");
+    pthread_create(&th_goal, NULL, func_goal, "Goal");
+
     char c;
     while (read(fdInput, &c, 1) > 0)
     {
         printf("Mouvement : %c\n", c);
     }
 
+    // Libération
+    pthread_join(th_moveAndScore, NULL);
+    pthread_join(th_goal, NULL);
     close(fdInput); // Fermeture du pipe nommé
     close(fdDisplay[1]); // Fermeture du pipe d'écriture
     wait(NULL); // Attente du fils (Display)
     return 0;
+}
+
+void *func_moveAndScore (void * arg) {
+    return NULL;
+}
+
+void *func_goal (void * arg) {
+    return NULL;
 }

@@ -83,7 +83,7 @@ int main()
         else if (c == 'q')
             break;
 
-         if (dir)
+        if (dir)
             write(fd, &dir, 1);
     }
     close(fd); // 
