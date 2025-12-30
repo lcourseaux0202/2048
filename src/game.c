@@ -33,7 +33,7 @@ int proc_2048(char * path)
 
     // Création de la grille
     int *grid; 
-    CHKNULL(grid = malloc(GRID_SIZE * GRID_SIZE * sizeof(int)));
+    CHKNULL(grid = calloc(GRID_SIZE * GRID_SIZE, sizeof(int)));
     
     //int (*grid2D)[GRID_SIZE] = (int (*)[GRID_SIZE])grid; // Pointeur de manipulation [i][j]
 
@@ -50,10 +50,14 @@ int proc_2048(char * path)
     // Thread Main
 
     
-    char c;
-    while (read(fdInput, &c, 1) > 0)
+    char move;
+    while (read(fdInput, &move, 1) > 0)
     {
-        printf("Mouvement : %c\n", c);
+        if (move == QUIT)
+        {
+            kill();
+            break;
+        }
     }
 
     // Libération
