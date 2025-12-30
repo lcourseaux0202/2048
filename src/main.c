@@ -57,7 +57,7 @@ int main()
     // Processus père
     CHKERR(fd = open(path, O_WRONLY));
     // Boucle des entrées utilisateurs
-    while (1)
+    while (1) // Se met sur 0 à la récéption du SIGUSR1
     {
         char c = getch();
         char dir = 0;
