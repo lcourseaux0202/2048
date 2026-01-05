@@ -78,9 +78,9 @@ int main()
         char c = getch();
         enum MOVE m = NONE;
         printf("%d\n", c);
-        if (c == 27) // Séquence d'échappement pour les flèches
+        if (c == 27)
         {
-            if (getch() == '[') // Les flèches sont souvent ESC + [ + (A, B, C ou D)
+            if (getch() == '[')
             {
                 switch (getch())
                 {
@@ -106,7 +106,7 @@ int main()
 
         printf("%d\n", m);
         if (m != NONE)
-            write(fd, &m, sizeof(m));
+            write(fd, &m, 1);
     }
     close(fd);    //
     unlink(path); // Suppression du pipe

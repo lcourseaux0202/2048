@@ -66,7 +66,7 @@ int proc_2048(char *path)
     sigaddset(&set, SIGUSR1); // Affichage terminer
 
     enum MOVE move;
-    while (read(fdInput, &move, sizeof(move)) > 0)
+    while (read(fdInput, &move, 1) > 0)
     {
         if (move == QUIT || gm->status != PROGRESS) // Gestion de la commande d'arrêt
         {
