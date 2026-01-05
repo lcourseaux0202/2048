@@ -8,10 +8,12 @@
 #include <sys/wait.h>
 #include <pthread.h>
 #include <stdbool.h>
+#include <signal.h>
 
 /*
 Fonction représentant le processus 2048
 */
+void updateGameStatus(game_variable *gm);
 
 int proc_2048(char * path) 
 {
@@ -52,7 +54,6 @@ int proc_2048(char * path)
 
     // Thread Main
 
-    
     char move;
     while (read(fdInput, &move, 1) > 0)
     {
@@ -63,6 +64,8 @@ int proc_2048(char * path)
             break;
         }
         // Envoie d'un signal à M&S pour traiter le coup
+        pthread_kill(th_moveAndScore,SIGUSR2);
+        // Attend un retour de goal       
     }
 
     // Libération
