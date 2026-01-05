@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include <pthread.h>
 
 #define GRID_SIZE 4
 #define OBJECTIV 2048
@@ -17,12 +18,23 @@ enum GAMESTATUS {
     LOSE
 };
 
-typedef struct game_variable{
+typedef struct game_variable {
     int * grid;
     int score;
     char move;
     enum GAMESTATUS status;
 } game_variable;
+
+typedef struct arg_moveAndScore {
+    game_variable * gm;
+    pthread_t th_goal;
+} arg_moveAndScore;
+
+typedef struct arg_goal {
+    game_variable * gm;
+    pthread_t th_main;
+    int fdDisplay;
+} arg_goal;
 
 int proc_2048(char * path);
 void *func_moveAndScore (void * arg);

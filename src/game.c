@@ -6,9 +6,9 @@
 #include <stdio.h>
 #include <fcntl.h>
 #include <sys/wait.h>
+#include <signal.h>
 #include <pthread.h>
 #include <stdbool.h>
-#include <signal.h>
 
 /*
 Fonction représentant le processus 2048
@@ -48,24 +48,39 @@ int proc_2048(char * path)
     // Création des threads
     pthread_t th_moveAndScore = 0, th_goal = 0;
 
+    //Thread Goal 
+    arg_goal argGoal = {.gm = gm, .th_main = pthread_self(), .fdDisplay = fdDisplay[1]};
+    pthread_create(&th_moveAndScore, NULL, func_moveAndScore, &argGoal);
 
-    pthread_create(&th_moveAndScore, NULL, func_moveAndScore, gm);
-    pthread_create(&th_goal, NULL, func_goal, gm);
+    //Thread Move&Score
+    arg_moveAndScore argMoveAndScore = {.gm = gm, .th_goal = th_goal};
+    pthread_create(&th_goal, NULL, func_goal, &argMoveAndScore);
 
     // Thread Main
 
+    // Mise en place de la gestion des signaux
+    sigset_t set;
+    int sig;
+
+    sigemptyset(&set);
+    sigaddset(&set, SIGUSR1); // Affichage terminer
+    
     char move;
     while (read(fdInput, &move, 1) > 0)
     {
         if (move == QUIT || gm->status != PROGRESS) // Gestion de la commande d'arrêt
         {
-            kill(getppid(),SIGUSR1); // Envoie du SIGUSR1 au père (processus input)
-            kill(pidDisplay,SIGUSR1); // Envoie du SIGUSR1 au processus display
+            kill(getppid(),SIGTERM); // Envoie du SIGTERM au père (processus input)
+            kill(pidDisplay,SIGTERM); // Envoie du SIGTERM au processus display
+            pthread_kill(th_moveAndScore,SIGTERM);
+            pthread_kill(th_goal,SIGTERM);
             break;
         }
         // Envoie d'un signal à M&S pour traiter le coup
-        pthread_kill(th_moveAndScore,SIGUSR2);
-        // Attend un retour de goal       
+        pthread_kill(th_moveAndScore,SIGUSR1);
+        
+        // Attente de la fin de l'affichage
+        sigwait(&set, &sig); // Attend un signal
     }
 
     // Libération
@@ -80,18 +95,64 @@ int proc_2048(char * path)
 }
 
 void *func_moveAndScore (void * arg) {
-    game_variable * gm = (game_variable *)arg;
+    arg_moveAndScore * args = (arg_moveAndScore *)arg; // Cast des arguments
+    game_variable * gm = args->gm;
 
+    // Mise en place de la gestion des signaux
+    sigset_t set;
+    int sig;
+
+    sigemptyset(&set);
+    sigaddset(&set, SIGUSR1); // Nouveau move
+    sigaddset(&set, SIGTERM); // Arrêt
+
+    while (1)
+    {
+        sigwait(&set, &sig); // Attend un signal
+
+        if (sig == SIGTERM) // Termine la boucle
+            break;
+
+        if (sig == SIGUSR1) // Gère le move
+        {
+            printf("Logique de move\n");
+
+            
+            pthread_kill(args->th_goal, SIGUSR1); // Passe la main à Goal
+        }
+    }
 
     return NULL;
 }
 
 void *func_goal (void * arg) {
-    game_variable * gm = (game_variable *)arg;
+    arg_goal * args = (arg_goal *)arg; // Cast des arguments
+    game_variable * gm = (game_variable *)args;
 
-    updateGameStatus(gm);
-    
-    //Envoi des infos à display via le pipe annonyme
+    // Mise en place de la gestion des signaux
+    sigset_t set;
+    int sig;
+
+    sigemptyset(&set);
+    sigaddset(&set, SIGUSR1); // Vérification de victoire
+    sigaddset(&set, SIGTERM); // Arrêt
+
+    while (1)
+    {
+        sigwait(&set, &sig); // Attend un signal
+
+        if (sig == SIGTERM) // Termine la boucle
+            break;
+
+        if (sig == SIGUSR1) // Gère la condition de vitoire
+        {
+            printf("Logique de goal\n");
+            updateGameStatus(gm);
+            
+            //Envoi des infos à display via le pipe annonyme
+            pthread_kill(args->th_main, SIGUSR1); // Passe la main à Main
+        }
+    }
 
     return NULL;
 }
