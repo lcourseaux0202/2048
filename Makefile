@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -Werror -Iinclude -Wno-unused-parameter # -Wno-unused-variable
+CFLAGS = -Wall -Wextra -Werror -Iinclude -Wno-unused-parameter -Wno-unused-variable -pthread
 
 SRC := $(wildcard src/*.c)
 OBJ := $(SRC:src/%.c=build/%.o)

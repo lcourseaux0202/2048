@@ -73,34 +73,40 @@ int main()
     CHKERR(fd = open(path, O_WRONLY));
     // Boucle des entrées utilisateurs
     running = 1;
-    while (running) // Se met sur 0 à la récéption du SIGUSR1
+    while (running) // Se met sur 0 à la réception du SIGUSR1
     {
         char c = getch();
-        char dir = 0;
-        if (c == 27)
+        enum MOVE m = NONE;
+        printf("%d\n", c);
+        if (c == 27) // Séquence d'échappement pour les flèches
         {
-            getch();
-            switch (getch())
+            if (getch() == '[') // Les flèches sont souvent ESC + [ + (A, B, C ou D)
             {
-            case 'A':
-                dir = 'u';
-                break;
-            case 'B':
-                dir = 'd';
-                break;
-            case 'C':
-                dir = 'r';
-                break;
-            case 'D':
-                dir = 'l';
-                break;
+                switch (getch())
+                {
+                case 'A':
+                    m = UP;
+                    break;
+                case 'B':
+                    m = DOWN;
+                    break;
+                case 'C':
+                    m = RIGHT;
+                    break;
+                case 'D':
+                    m = LEFT;
+                    break;
+                }
             }
         }
         else if (c == 'q')
-            break;
+        {
+            m = QUIT;
+        }
 
-        if (dir)
-            write(fd, &dir, 1);
+        printf("%d\n", m);
+        if (m != NONE)
+            write(fd, &m, sizeof(m));
     }
     close(fd);    //
     unlink(path); // Suppression du pipe
