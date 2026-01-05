@@ -43,14 +43,16 @@ char getch()
 int main()
 {
     // Configuration du sigaction pour stopper le programme proprement à la réception de SIGUSR1
-    struct sigaction sa_stop;
+    struct sigaction sa_stop, sa_term;
 
     sa_stop.sa_handler = stop_running;
+    sa_term.sa_handler = stop_running;
 
     sigaction(SIGUSR1, &sa_stop, NULL);
+    sigaction(SIGTERM, &sa_term, NULL);
 
     // Création du pipe nommé
-    char *path = "/tmp/pipe_coup";
+    char *path = "/tmp/pipe_move";
 
     if (mkfifo(path, 0666) == -1 && errno != EEXIST)
     {
