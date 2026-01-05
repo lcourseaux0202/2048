@@ -13,13 +13,21 @@
 
 #include <termios.h> // Utilisé dans la fonction getch()
 
+int running;
+
+// Fonction pour stopper la boucle while dans le main
+void stop_running(int sigrecu)
+{
+    running = 0;
+}
+
 // Fonction pour lire les entrées utilisateurs (https://stackoverflow.com/questions/421860/capture-characters-from-standard-input-without-waiting-for-enter-to-be-pressed)
 char getch()
 {
     char c;
     struct termios oldt, newt;
 
-    tcgetattr(STDIN_FILENO, &oldt);  // sauvegarde
+    tcgetattr(STDIN_FILENO, &oldt); // sauvegarde
     newt = oldt;
     newt.c_lflag &= ~(ICANON | ECHO); // non canonique, pas d'écho
     newt.c_cc[VMIN] = 1;
@@ -32,15 +40,22 @@ char getch()
     return c;
 }
 
-
 int main()
 {
+    // Configuration du sigaction pour stopper le programme proprement à la réception de SIGUSR1
+    struct sigaction sa_stop;
+
+    sa_stop.sa_handler = stop_running;
+
+    sigaction(SIGUSR1, &sa_stop, NULL);
+
     // Création du pipe nommé
     char *path = "/tmp/pipe_coup";
 
-    if (mkfifo(path, 0666) == -1 && errno != EEXIST) { 
-        perror("mkfifo"); 
-        return EXIT_FAILURE; 
+    if (mkfifo(path, 0666) == -1 && errno != EEXIST)
+    {
+        perror("mkfifo");
+        return EXIT_FAILURE;
     }
 
     int fd;
@@ -57,7 +72,8 @@ int main()
     // Processus père
     CHKERR(fd = open(path, O_WRONLY));
     // Boucle des entrées utilisateurs
-    while (1) // Se met sur 0 à la récéption du SIGUSR1
+    running = 1;
+    while (running) // Se met sur 0 à la récéption du SIGUSR1
     {
         char c = getch();
         char dir = 0;
@@ -86,8 +102,8 @@ int main()
         if (dir)
             write(fd, &dir, 1);
     }
-    close(fd); // 
+    close(fd);    //
     unlink(path); // Suppression du pipe
-    wait(NULL); // Attente du fils (Moteur 2048)
+    wait(NULL);   // Attente du fils (Moteur 2048)
     return EXIT_SUCCESS;
 }
