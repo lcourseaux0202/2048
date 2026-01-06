@@ -21,13 +21,11 @@ int proc_display(int fdDisplay)
 {
     displaying = 1;
 
-    struct sigaction sa_stop, sa_term;
+    struct sigaction sa;
 
-    sa_stop.sa_handler = stop_display;
-    sa_term.sa_handler = stop_display;
+    sa.sa_handler = stop_display;
 
-    sigaction(SIGUSR1, &sa_stop, NULL);
-    sigaction(SIGTERM, &sa_term, NULL);
+    sigaction(SIGTERM, &sa, NULL);
 
     char buffer[1024];
 
