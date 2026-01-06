@@ -79,7 +79,6 @@ int main()
     {
         char c = getch();
         enum MOVE m = NONE;
-        printf("%d\n", c);
         if (c == 27)
         {
             if (getch() == '[')
@@ -105,8 +104,6 @@ int main()
         {
             m = QUIT;
         }
-
-        printf("%d\n", m);
         if (m != NONE)
             write(fd, &m, 1);
     }

@@ -1,5 +1,6 @@
 #include "macro.h"
 #include "game.h"
+#include "display.h"
 
 #include <unistd.h>
 #include <stdlib.h>
@@ -26,7 +27,9 @@ int proc_2048(char *path)
     if (pidDisplay == 0) // Processus fils
     {
         close(fdDisplay[1]); // Fermeture du pipe d'écriture
+
         // Lancement de la fonction d'affichage
+        proc_display(fdDisplay[0]);
 
         close(fdDisplay[0]); // Fermeture du pipe de lecture
         return 0;
@@ -50,11 +53,11 @@ int proc_2048(char *path)
 
     // Thread Goal
     arg_goal argGoal = {.gm = gm, .th_main = pthread_self(), .fdDisplay = fdDisplay[1]};
-    pthread_create(&th_moveAndScore, NULL, func_moveAndScore, &argGoal);
+    pthread_create(&th_goal, NULL, func_moveAndScore, &argGoal);
 
     // Thread Move&Score
     arg_moveAndScore argMoveAndScore = {.gm = gm, .th_goal = th_goal};
-    pthread_create(&th_goal, NULL, func_goal, &argMoveAndScore);
+    pthread_create(&th_moveAndScore, NULL, func_goal, &argMoveAndScore);
 
     // Thread Main
 
@@ -151,6 +154,8 @@ void *func_goal(void *arg)
             updateGameStatus(gm);
 
             // Envoi des infos à display via le pipe annonyme
+            char msg[] = "Yoooo\n";
+            write(args->fdDisplay, msg, sizeof(msg));
             pthread_kill(args->th_main, SIGUSR1); // Passe la main à Main
         }
     }
