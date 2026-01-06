@@ -42,15 +42,6 @@ char getch()
 
 int main()
 {
-    // Configuration du sigaction pour stopper le programme proprement à la réception de SIGUSR1
-    struct sigaction sa_stop, sa_term;
-
-    sa_stop.sa_handler = stop_running;
-    sa_term.sa_handler = stop_running;
-
-    sigaction(SIGUSR1, &sa_stop, NULL);
-    sigaction(SIGTERM, &sa_term, NULL);
-
     // Création du pipe nommé
     char *path = "/tmp/pipe_move";
 
@@ -72,7 +63,18 @@ int main()
     }
 
     // Processus père
+    // Configuration du sigaction pour stopper le programme proprement à la réception de SIGUSR1
+    struct sigaction sa;
+    memset(&sa, 0, sizeof(sa));
+
+    sa.sa_handler = stop_running;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = 0;
+
+    sigaction(SIGTERM, &sa, NULL);
+
     CHKERR(fd = open(path, O_WRONLY));
+
     // Boucle des entrées utilisateurs
     running = 1;
     while (running) // Se met sur 0 à la réception du SIGUSR1
@@ -105,10 +107,11 @@ int main()
             m = QUIT;
         }
         if (m != NONE)
+        {
             write(fd, &m, 1);
+        }
     }
     close(fd);    //
     unlink(path); // Suppression du pipe
-    wait(NULL);   // Attente du fils (Moteur 2048)
     return EXIT_SUCCESS;
 }

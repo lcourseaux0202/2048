@@ -42,7 +42,7 @@ int proc_2048(char *path)
     CHKNULL(gm = calloc(1, sizeof(game_variable)));
     CHKNULL(gm->grid = calloc(GRID_SIZE * GRID_SIZE, sizeof(int)));
 
-    // int (*grid2D)[GRID_SIZE] = (int (*)[GRID_SIZE])grid; // Pointeur de manipulation [i][j]
+    // int (*grid2D)[GRID_SIZE] = (int (*)[GRID_SIZE])gm->grid; // Pointeur de manipulation [i][j]
 
     // Ouverture pipe nommé
     int fdInput;
@@ -67,6 +67,8 @@ int proc_2048(char *path)
 
     sigemptyset(&set);
     sigaddset(&set, SIGUSR1); // Affichage terminer
+
+    pthread_sigmask(SIG_BLOCK, &set, NULL);
 
     enum MOVE move;
     while (read(fdInput, &move, 1) > 0)
@@ -110,6 +112,8 @@ void *func_moveAndScore(void *arg)
     sigaddset(&set, SIGUSR1); // Nouveau move
     sigaddset(&set, SIGTERM); // Arrêt
 
+    pthread_sigmask(SIG_BLOCK, &set, NULL);
+
     while (1)
     {
         sigwait(&set, &sig); // Attend un signal
@@ -140,6 +144,8 @@ void *func_goal(void *arg)
     sigemptyset(&set);
     sigaddset(&set, SIGUSR1); // Vérification de victoire
     sigaddset(&set, SIGTERM); // Arrêt
+
+    pthread_sigmask(SIG_BLOCK, &set, NULL);
 
     while (1)
     {
