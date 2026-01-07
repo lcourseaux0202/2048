@@ -1,6 +1,7 @@
 #include "macro.h"
 #include "game.h"
 #include "display.h"
+#include "signals.h"
 
 #include <unistd.h>
 #include <stdlib.h>
@@ -30,7 +31,7 @@ int proc_2048(char *path)
 
         // Lancement de la fonction d'affichage
         proc_display(fdDisplay[0]);
-
+        printf("test\n");
         close(fdDisplay[0]); // Fermeture du pipe de lecture
         return 0;
     }
@@ -71,28 +72,29 @@ int proc_2048(char *path)
     pthread_sigmask(SIG_BLOCK, &set, NULL);
 
     enum MOVE move;
-    while (read(fdInput, &move, 1) > 0)
+    while (read(fdInput, &move, sizeof(move)) > 0)
     {
-        if (move == QUIT || gm->status != PROGRESS) // Gestion de la commande d'arrêt
-        {
-            kill(getppid(), SIGTERM);  // Envoie du SIGTERM au père (processus input)
-            kill(pidDisplay, SIGTERM); // Envoie du SIGTERM au processus display
-            pthread_kill(th_moveAndScore, SIGTERM);
-            pthread_kill(th_goal, SIGTERM);
-            break;
-        }
+        printf("\n%d\n",move);
+        if (move == QUIT || gm->status != PROGRESS) break;
         // Envoie d'un signal à M&S pour traiter le coup
         pthread_kill(th_moveAndScore, SIGUSR1);
 
-        // Attente de la fin de l'affichage
+        // Attente de Goal et de display
         sigwait(&set, &sig); // Attend un signal
+        //sigwait(&set, &sig); // Attend un signal
     }
 
+    //Arrêt des proc et threads
+    pthread_kill(th_moveAndScore, SIGTERM);
+    pthread_kill(th_goal, SIGTERM);
+    kill(getppid(), SIGTERM);  // Envoie du SIGTERM au père (processus input)
+    kill(pidDisplay, SIGTERM); // Envoie du SIGTERM au processus display
+
     // Libération
-    free(gm->grid);
-    free(gm);
     pthread_join(th_moveAndScore, NULL);
     pthread_join(th_goal, NULL);
+    free(gm->grid);
+    free(gm);
     close(fdInput);      // Fermeture du pipe nommé
     close(fdDisplay[1]); // Fermeture du pipe d'écriture
     wait(NULL);          // Attente du fils (Display)
@@ -157,7 +159,7 @@ void *func_goal(void *arg)
         if (sig == SIG_GOAL) // Gère la condition de vitoire
         {
             printf("Logique de goal\n");
-            updateGameStatus(gm);
+            //updateGameStatus(gm);
 
             // Envoi des infos à display via le pipe annonyme
             char msg[] = "Yoooo\n";

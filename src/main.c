@@ -87,18 +87,10 @@ int main()
             {
                 switch (getch())
                 {
-                case 'A':
-                    m = UP;
-                    break;
-                case 'B':
-                    m = DOWN;
-                    break;
-                case 'C':
-                    m = RIGHT;
-                    break;
-                case 'D':
-                    m = LEFT;
-                    break;
+                case 'A': m = UP; break;
+                case 'B': m = DOWN; break;
+                case 'C': m = RIGHT; break;
+                case 'D': m = LEFT; break;
                 }
             }
         }
@@ -108,7 +100,7 @@ int main()
         }
         if (m != NONE)
         {
-            write(fd, &m, 1);
+            write(fd, &m, sizeof(m));
         }
     }
     close(fd);    //
