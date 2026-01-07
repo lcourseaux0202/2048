@@ -16,8 +16,11 @@
 Fonction représentant le processus 2048
 */
 void updateGameStatus(game_variable *gm);
-void addNumberOnGrid(int * grid);
-void executeMove(int * grid);
+void addNumberOnGrid(int *grid);
+void executeMove(int *grid, enum MOVE move);
+void processLine(int *a, int *b, int *c, int *d);
+
+void print_grid(int *grid); // Pour tester seulement
 
 int proc_2048(char *path)
 {
@@ -83,15 +86,17 @@ int proc_2048(char *path)
 
     pthread_sigmask(SIG_BLOCK, &set, NULL);
 
-    //Début du jeu
+    // Début du jeu
     addNumberOnGrid(gm->grid); // Ajout des deux premières cases
     addNumberOnGrid(gm->grid);
 
     enum MOVE move;
     while (read(fdInput, &move, sizeof(move)) == sizeof(move))
     {
-        printf("\n%d\n",move);
-        if (move == QUIT || gm->status != PROGRESS) break;
+        if (move == QUIT || gm->status != PROGRESS)
+            break;
+
+        gm->move = move;
         // Envoie d'un signal à M&S pour traiter le coup
         pthread_kill(th_moveAndScore, SIG_MOVE);
 
@@ -100,7 +105,7 @@ int proc_2048(char *path)
         sigwait(&set, &sig); // Attend un signal
     }
 
-    //Arrêt des proc et threads
+    // Arrêt des proc et threads
     pthread_kill(th_moveAndScore, SIGTERM);
     pthread_kill(th_goal, SIGTERM);
     kill(getppid(), SIGTERM);  // Envoie du SIGTERM au père (processus input)
@@ -128,7 +133,7 @@ void *func_moveAndScore(void *arg)
 
     sigemptyset(&set);
     sigaddset(&set, SIG_MOVE); // Nouveau move
-    sigaddset(&set, SIGTERM); // Arrêt
+    sigaddset(&set, SIGTERM);  // Arrêt
 
     pthread_sigmask(SIG_BLOCK, &set, NULL);
 
@@ -141,8 +146,8 @@ void *func_moveAndScore(void *arg)
 
         if (sig == SIG_MOVE) // Gère le move
         {
-            printf("Logique de move\n");
-
+            executeMove(gm->grid, gm->move);
+            print_grid(gm->grid);
             pthread_kill(args->th_goal, SIG_GOAL); // Passe la main à Goal
         }
     }
@@ -161,7 +166,7 @@ void *func_goal(void *arg)
 
     sigemptyset(&set);
     sigaddset(&set, SIG_GOAL); // Vérification de victoire
-    sigaddset(&set, SIGTERM); // Arrêt
+    sigaddset(&set, SIGTERM);  // Arrêt
 
     pthread_sigmask(SIG_BLOCK, &set, NULL);
 
@@ -181,7 +186,6 @@ void *func_goal(void *arg)
             {
                 addNumberOnGrid(gm->grid); // Ajout de la prochaine case
             }
-            
 
             // Envoi des infos à display via le pipe annonyme
             char msg[] = "Yoooo\n";
@@ -218,20 +222,95 @@ void updateGameStatus(game_variable *gm)
 }
 
 // Ajoute un nombre placé aléatoirment sur la grille (2 ou 4)
-void addNumberOnGrid(int * grid) {
-    //Choix de l'emplacement
+void addNumberOnGrid(int *grid)
+{
+    // Choix de l'emplacement
     int loc;
     do
     {
-        loc = rand() % GRID_SIZE * GRID_SIZE;
+        loc = rand() % (GRID_SIZE * GRID_SIZE);
     } while (*(grid + loc) != 0);
 
-    //Choix et placement de la valeur
-    *(grid + loc) = rand() % 100 < 90 ? 2 : 4; 
+    // Choix et placement de la valeur
+    *(grid + loc) = rand() % 100 < 90 ? 2 : 4;
 }
 
-// Execute le move de l'utilisateur et retourne de score obtenu par les fusion
-void executeMove(int * grid) {
+// Execute le move de l'utilisateur et retourne de score obtenu par les fusion (TODO : calculer le score)
+void executeMove(int *grid, enum MOVE move)
+{
 
+    for (int i = 0; i < GRID_SIZE; i++)
+    {
+        if (move == LEFT)
+        {
+            processLine(&grid[i * GRID_SIZE + 0], &grid[i * GRID_SIZE + 1], &grid[i * GRID_SIZE + 2], &grid[i * GRID_SIZE + 3]);
+        }
+        else if (move == RIGHT)
+        {
+            // Inversement par rapport à LEFT pour faire RIGHT
+            processLine(&grid[i * GRID_SIZE + 3], &grid[i * GRID_SIZE + 2], &grid[i * GRID_SIZE + 1], &grid[i * GRID_SIZE + 0]);
+        }
+        else if (move == UP)
+        {
+            processLine(&grid[0 * GRID_SIZE + i], &grid[1 * GRID_SIZE + i], &grid[2 * GRID_SIZE + i], &grid[3 * GRID_SIZE + i]);
+        }
+        else if (move == DOWN)
+        {
+            // Inversement par rapport à UP pour faire DOWN
+            processLine(&grid[3 * GRID_SIZE + i], &grid[2 * GRID_SIZE + i], &grid[1 * GRID_SIZE + i], &grid[0 * GRID_SIZE + i]);
+        }
+    }
 }
 
+// Fonction pour calculer le mouvement sur une ligne (les GRID_SIZEtuiles sont a,b,c,d)
+void processLine(int *a, int *b, int *c, int *d)
+{
+    int line[4] = {*a, *b, *c, *d};
+    int temp[4] = {0, 0, 0, 0};
+
+    // On fait glisser une première fois les cases
+    int pos = 0;
+    for (int i = 0; i < 4; i++)
+    {
+        if (line[i] != 0)
+            temp[pos++] = line[i];
+    }
+
+    // Si deux cases sont identiques l'une à côté de l'autre, on les fusionne
+    for (int i = 0; i < 3; i++)
+    {
+        if (temp[i] != 0 && temp[i] == temp[i + 1])
+        {
+            temp[i] *= 2;
+            temp[i + 1] = 0;
+        }
+    }
+
+    // On redéplace pour boucher les trous créés par les fusions
+    int finalLine[4] = {0, 0, 0, 0};
+    pos = 0;
+    for (int i = 0; i < 4; i++)
+    {
+        if (temp[i] != 0)
+            finalLine[pos++] = temp[i];
+    }
+
+    // Réinjecter les valeurs dans la grille
+    *a = finalLine[0];
+    *b = finalLine[1];
+    *c = finalLine[2];
+    *d = finalLine[3];
+}
+
+// Affichage de la grille, test seulement, pourra être réutilisée pour display
+void print_grid(int *grid)
+{
+    for (size_t i = 0; i < GRID_SIZE; i++)
+    {
+        for (size_t j = 0; j < GRID_SIZE; j++)
+        {
+            printf("%d ", grid[i * GRID_SIZE + j]);
+        }
+        printf("\n");
+    }
+}
