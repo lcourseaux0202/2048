@@ -31,8 +31,9 @@ int proc_display(int fdDisplay)
 
     while (displaying)
     {
-        read(fdDisplay, buffer, 1024);
-        printf(buffer);
+        ssize_t nb = read(fdDisplay, buffer, 1024);
+        buffer[nb] = '\0';
+        printf("%s\n",buffer);
     }
     return 0;
 }

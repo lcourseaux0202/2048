@@ -53,11 +53,11 @@ int proc_2048(char *path)
 
     // Thread Goal
     arg_goal argGoal = {.gm = gm, .th_main = pthread_self(), .fdDisplay = fdDisplay[1]};
-    pthread_create(&th_goal, NULL, func_moveAndScore, &argGoal);
+    pthread_create(&th_goal, NULL, func_goal, &argGoal);
 
     // Thread Move&Score
     arg_moveAndScore argMoveAndScore = {.gm = gm, .th_goal = th_goal};
-    pthread_create(&th_moveAndScore, NULL, func_goal, &argMoveAndScore);
+    pthread_create(&th_moveAndScore, NULL, func_moveAndScore, &argMoveAndScore);
 
     // Thread Main
 
@@ -66,7 +66,7 @@ int proc_2048(char *path)
     int sig;
 
     sigemptyset(&set);
-    sigaddset(&set, SIGUSR1); // Affichage terminer
+    sigaddset(&set, SIG_MAIN); // Affichage terminer
 
     pthread_sigmask(SIG_BLOCK, &set, NULL);
 
@@ -109,7 +109,7 @@ void *func_moveAndScore(void *arg)
     int sig;
 
     sigemptyset(&set);
-    sigaddset(&set, SIGUSR1); // Nouveau move
+    sigaddset(&set, SIG_MOVE); // Nouveau move
     sigaddset(&set, SIGTERM); // Arrêt
 
     pthread_sigmask(SIG_BLOCK, &set, NULL);
@@ -121,11 +121,11 @@ void *func_moveAndScore(void *arg)
         if (sig == SIGTERM) // Termine la boucle
             break;
 
-        if (sig == SIGUSR1) // Gère le move
+        if (sig == SIG_MOVE) // Gère le move
         {
             printf("Logique de move\n");
 
-            pthread_kill(args->th_goal, SIGUSR1); // Passe la main à Goal
+            pthread_kill(args->th_goal, SIG_GOAL); // Passe la main à Goal
         }
     }
 
@@ -135,14 +135,14 @@ void *func_moveAndScore(void *arg)
 void *func_goal(void *arg)
 {
     arg_goal *args = (arg_goal *)arg; // Cast des arguments
-    game_variable *gm = (game_variable *)args;
+    game_variable *gm = args->gm;
 
     // Mise en place de la gestion des signaux
     sigset_t set;
     int sig;
 
     sigemptyset(&set);
-    sigaddset(&set, SIGUSR1); // Vérification de victoire
+    sigaddset(&set, SIG_GOAL); // Vérification de victoire
     sigaddset(&set, SIGTERM); // Arrêt
 
     pthread_sigmask(SIG_BLOCK, &set, NULL);
@@ -154,7 +154,7 @@ void *func_goal(void *arg)
         if (sig == SIGTERM) // Termine la boucle
             break;
 
-        if (sig == SIGUSR1) // Gère la condition de vitoire
+        if (sig == SIG_GOAL) // Gère la condition de vitoire
         {
             printf("Logique de goal\n");
             updateGameStatus(gm);
@@ -162,7 +162,7 @@ void *func_goal(void *arg)
             // Envoi des infos à display via le pipe annonyme
             char msg[] = "Yoooo\n";
             write(args->fdDisplay, msg, sizeof(msg));
-            pthread_kill(args->th_main, SIGUSR1); // Passe la main à Main
+            pthread_kill(args->th_main, SIG_MAIN); // Passe la main à Main
         }
     }
 

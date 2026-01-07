@@ -1,8 +1,13 @@
 #include <stdint.h>
 #include <pthread.h>
+#include <signal.h>
 
 #define GRID_SIZE 4
 #define OBJECTIV 2048
+
+#define SIG_MOVE   SIGUSR1
+#define SIG_GOAL   SIGUSR2
+#define SIG_MAIN   SIGRTMIN
 
 enum MOVE
 {
