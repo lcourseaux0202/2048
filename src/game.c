@@ -49,6 +49,16 @@ int proc_2048(char *path)
     int fdInput;
     CHKERR(fdInput = open(path, O_RDONLY));
 
+    // Blocage des signaux
+    sigset_t set;
+    sigemptyset(&set);
+    sigaddset(&set, SIG_MOVE);
+    sigaddset(&set, SIG_GOAL);
+    sigaddset(&set, SIGTERM);
+    sigaddset(&set, SIG_MAIN);
+
+    pthread_sigmask(SIG_BLOCK, &set, NULL);
+
     // Création des threads
     pthread_t th_moveAndScore = 0, th_goal = 0;
 
@@ -63,7 +73,6 @@ int proc_2048(char *path)
     // Thread Main
 
     // Mise en place de la gestion des signaux
-    sigset_t set;
     int sig;
 
     sigemptyset(&set);
@@ -72,16 +81,16 @@ int proc_2048(char *path)
     pthread_sigmask(SIG_BLOCK, &set, NULL);
 
     enum MOVE move;
-    while (read(fdInput, &move, sizeof(move)) > 0)
+    while (read(fdInput, &move, sizeof(move)) == sizeof(move))
     {
         printf("\n%d\n",move);
         if (move == QUIT || gm->status != PROGRESS) break;
         // Envoie d'un signal à M&S pour traiter le coup
-        pthread_kill(th_moveAndScore, SIGUSR1);
+        pthread_kill(th_moveAndScore, SIG_MOVE);
 
         // Attente de Goal et de display
         sigwait(&set, &sig); // Attend un signal
-        //sigwait(&set, &sig); // Attend un signal
+        sigwait(&set, &sig); // Attend un signal
     }
 
     //Arrêt des proc et threads
@@ -159,7 +168,7 @@ void *func_goal(void *arg)
         if (sig == SIG_GOAL) // Gère la condition de vitoire
         {
             printf("Logique de goal\n");
-            //updateGameStatus(gm);
+            updateGameStatus(gm);
 
             // Envoi des infos à display via le pipe annonyme
             char msg[] = "Yoooo\n";

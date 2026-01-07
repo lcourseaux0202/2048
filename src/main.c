@@ -9,22 +9,22 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <sys/stat.h>
-#include <sys/wait.h>
 
-#include <termios.h> // Utilisé dans la fonction getch()
+#include <termios.h>
 
 int running;
 
 // Fonction pour stopper la boucle while dans le main
 void stop_running(int sigrecu)
 {
+    (void)sigrecu; // éviter warning unused
     running = 0;
 }
 
-// Fonction pour lire les entrées utilisateurs (https://stackoverflow.com/questions/421860/capture-characters-from-standard-input-without-waiting-for-enter-to-be-pressed)
+// Fonction pour lire les entrées utilisateurs sans attendre Enter
 char getch()
 {
-    char c;
+    char c = 0;
     struct termios oldt, newt;
 
     tcgetattr(STDIN_FILENO, &oldt); // sauvegarde
@@ -34,7 +34,8 @@ char getch()
     newt.c_cc[VTIME] = 0;
     tcsetattr(STDIN_FILENO, TCSANOW, &newt);
 
-    read(STDIN_FILENO, &c, 1);
+    if (read(STDIN_FILENO, &c, 1) <= 0)
+        c = 0;
 
     tcsetattr(STDIN_FILENO, TCSANOW, &oldt); // restauration
     return c;
@@ -52,36 +53,39 @@ int main()
     }
 
     int fd;
-
-    pid_t pid;
-    CHKERR(pid = fork());
+    pid_t pid = fork();
+    CHKERR(pid);
 
     if (pid == 0) // Processus fils
     {
-        // Lancement du moteur 2048
         return proc_2048(path);
     }
 
     // Processus père
-    // Configuration du sigaction pour stopper le programme proprement à la réception de SIGUSR1
+    // Configuration du sigaction pour stopper le programme proprement
     struct sigaction sa;
     memset(&sa, 0, sizeof(sa));
-
     sa.sa_handler = stop_running;
     sigemptyset(&sa.sa_mask);
     sa.sa_flags = 0;
-
     sigaction(SIGTERM, &sa, NULL);
 
-    CHKERR(fd = open(path, O_WRONLY));
+    fd = open(path, O_WRONLY);
+    if (fd == -1)
+    {
+        perror("open pipe");
+        kill(pid, SIGTERM);
+        unlink(path);
+        return EXIT_FAILURE;
+    }
 
-    // Boucle des entrées utilisateurs
     running = 1;
-    while (running) // Se met sur 0 à la réception du SIGUSR1
+    while (running)
     {
         char c = getch();
         enum MOVE m = NONE;
-        if (c == 27)
+
+        if (c == 27) // flèches
         {
             if (getch() == '[')
             {
@@ -98,12 +102,18 @@ int main()
         {
             m = QUIT;
         }
+
         if (m != NONE)
         {
-            write(fd, &m, sizeof(m));
+            ssize_t w = write(fd, &m, sizeof(m));
+            if (w != sizeof(m))
+            {
+                if (errno == EPIPE) break; // pipe fermé
+                perror("write");
+            }
         }
     }
-    close(fd);    //
+    close(fd); // fermeture du pipe
     unlink(path); // Suppression du pipe
     return EXIT_SUCCESS;
 }

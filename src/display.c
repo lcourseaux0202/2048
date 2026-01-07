@@ -41,7 +41,7 @@ int proc_display(int fdDisplay)
         printf("%s", buffer);
         fflush(stdout);
 
-        //kill(getppid(), SIG_MAIN);
+        kill(getppid(), SIG_MAIN);
     }
 
     return 0;
