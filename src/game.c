@@ -16,9 +16,12 @@
 Fonction représentant le processus 2048
 */
 void updateGameStatus(game_variable *gm);
+void addNumberOnGrid(int * grid);
+void executeMove(int * grid);
 
 int proc_2048(char *path)
 {
+    srand(time(NULL));
     // Création du pipe annonyme pour l'affichage
     int fdDisplay[2];
     CHKERR(pipe(fdDisplay));
@@ -79,6 +82,10 @@ int proc_2048(char *path)
     sigaddset(&set, SIG_MAIN); // Affichage terminer
 
     pthread_sigmask(SIG_BLOCK, &set, NULL);
+
+    //Début du jeu
+    addNumberOnGrid(gm->grid); // Ajout des deux premières cases
+    addNumberOnGrid(gm->grid);
 
     enum MOVE move;
     while (read(fdInput, &move, sizeof(move)) == sizeof(move))
@@ -170,6 +177,12 @@ void *func_goal(void *arg)
             printf("Logique de goal\n");
             updateGameStatus(gm);
 
+            if (gm->status == PROGRESS)
+            {
+                addNumberOnGrid(gm->grid); // Ajout de la prochaine case
+            }
+            
+
             // Envoi des infos à display via le pipe annonyme
             char msg[] = "Yoooo\n";
             write(args->fdDisplay, msg, sizeof(msg));
@@ -198,7 +211,27 @@ void updateGameStatus(game_variable *gm)
         {
             hasEmptyCell = true;
         }
+        // Ajouter condition qu'on puisse encore faire une move
     }
 
     gm->status = hasEmptyCell ? PROGRESS : LOSE;
 }
+
+// Ajoute un nombre placé aléatoirment sur la grille (2 ou 4)
+void addNumberOnGrid(int * grid) {
+    //Choix de l'emplacement
+    int loc;
+    do
+    {
+        loc = rand() % GRID_SIZE * GRID_SIZE;
+    } while (*(grid + loc) != 0);
+
+    //Choix et placement de la valeur
+    *(grid + loc) = rand() % 100 < 90 ? 2 : 4; 
+}
+
+// Execute le move de l'utilisateur et retourne de score obtenu par les fusion
+void executeMove(int * grid) {
+
+}
+
