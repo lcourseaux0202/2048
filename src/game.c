@@ -147,7 +147,6 @@ void *func_moveAndScore(void *arg)
         if (sig == SIG_MOVE) // Gère le move
         {
             executeMove(gm->grid, gm->move);
-            print_grid(gm->grid);
             pthread_kill(args->th_goal, SIG_GOAL); // Passe la main à Goal
         }
     }
@@ -169,7 +168,9 @@ void *func_goal(void *arg)
     sigaddset(&set, SIGTERM);  // Arrêt
 
     pthread_sigmask(SIG_BLOCK, &set, NULL);
-
+    printf("2048\n");
+    print_grid(gm->grid); // Affichage de départ
+    printf("####\n");
     while (1)
     {
         sigwait(&set, &sig); // Attend un signal
@@ -179,12 +180,14 @@ void *func_goal(void *arg)
 
         if (sig == SIG_GOAL) // Gère la condition de vitoire
         {
-            printf("Logique de goal\n");
+            //printf("Logique de goal\n");
             updateGameStatus(gm);
 
             if (gm->status == PROGRESS)
             {
                 addNumberOnGrid(gm->grid); // Ajout de la prochaine case
+                print_grid(gm->grid);
+                printf("####\n");
             }
 
             // Envoi des infos à display via le pipe annonyme
