@@ -28,17 +28,41 @@ int proc_display(int fdDisplay)
     sa.sa_handler = stop_display;
     sigaction(SIGTERM, &sa, NULL);
 
-    char buffer[1024];
+    int buffer[1024];
 
     while (displaying)
     {
-        ssize_t nb = read(fdDisplay, buffer, sizeof(buffer) - 1);
+        ssize_t nb = read(fdDisplay, buffer, 16*sizeof(int));
 
         if (nb <= 0)
             break;
 
-        buffer[nb] = '\0';
-        printf("%s", buffer);
+        printf("\n\n|======||======||======||======|\n");
+        for (size_t i = 0; i < GRID_SIZE; i++)
+        {
+            for (size_t j = 0; j < GRID_SIZE; j++)
+            {
+                if (buffer[i * GRID_SIZE + j] < 16)
+                {
+                    printf("|   %d  |", buffer[i * GRID_SIZE + j]);
+                }
+                else if (buffer[i * GRID_SIZE + j] < 128)
+                {
+                    printf("|  %d  |", buffer[i * GRID_SIZE + j]);
+                }
+                else if (buffer[i * GRID_SIZE + j] < 1024)
+                {
+                    printf("|  %d |", buffer[i * GRID_SIZE + j]);
+                }
+                else
+                {
+                    printf("| %d |", buffer[i * GRID_SIZE + j]);
+                }
+
+            }
+            printf("\n|======||======||======||======|\n");
+        }
+
         fflush(stdout);
 
         kill(getppid(), SIG_MAIN);

@@ -186,13 +186,14 @@ void *func_goal(void *arg)
             if (gm->status == PROGRESS)
             {
                 addNumberOnGrid(gm->grid); // Ajout de la prochaine case
-                print_grid(gm->grid);
+                //print_grid(gm->grid);
                 printf("####\n");
             }
 
             // Envoi des infos à display via le pipe annonyme
-            char msg[] = "Yoooo\n";
-            write(args->fdDisplay, msg, sizeof(msg));
+            //char msg[] = "Yoooo\n";
+            //write(args->fdDisplay, msg, sizeof(msg))
+            write(args->fdDisplay, gm->grid, 16*sizeof(int));
             pthread_kill(args->th_main, SIG_MAIN); // Passe la main à Main
         }
     }
