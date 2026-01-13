@@ -17,8 +17,8 @@ Fonction représentant le processus 2048
 */
 void updateGameStatus(game_variable *gm);
 void addNumberOnGrid(int *grid);
-void executeMove(int *grid, enum MOVE move, size_t size);
-void processLine(int *line, size_t size);
+void executeMove(int *grid, enum MOVE move, size_t size, int * score);
+void processLine(int *line, size_t size, int * score);
 
 void print_grid(int *grid); // Pour tester seulement
 
@@ -146,7 +146,8 @@ void *func_moveAndScore(void *arg)
 
         if (sig == SIG_MOVE) // Gère le move
         {
-            executeMove(gm->grid, gm->move, GRID_SIZE);
+            executeMove(gm->grid, gm->move, GRID_SIZE,&gm->score);
+            printf("Temp Score : %d\n", gm->score);
             pthread_kill(args->th_goal, SIG_GOAL); // Passe la main à Goal
         }
     }
@@ -235,11 +236,10 @@ void addNumberOnGrid(int *grid)
 }
 
 // Execute le move de l'utilisateur et retourne de score obtenu par les fusion (TODO : calculer le score)
-void executeMove(int *grid, enum MOVE move, size_t size)
+void executeMove(int *grid, enum MOVE move, size_t size, int * score)
 {
     int *line = malloc(size * sizeof(int));
-    if (!line)
-        return; // ou gérer l'erreur autrement
+    if (!line) return;
 
     for (size_t i = 0; i < size; i++)
     {
@@ -252,7 +252,7 @@ void executeMove(int *grid, enum MOVE move, size_t size)
                 line[j] = grid[i * size + col];
             }
 
-            processLine(line, size);
+            processLine(line, size,score);
 
             // Réécriture dans la grille
             for (size_t j = 0; j < size; j++)
@@ -270,7 +270,7 @@ void executeMove(int *grid, enum MOVE move, size_t size)
                 line[j] = grid[row * size + i];
             }
 
-            processLine(line, size);
+            processLine(line, size, score);
 
             // Réécriture dans la grille
             for (size_t j = 0; j < size; j++)
@@ -285,7 +285,7 @@ void executeMove(int *grid, enum MOVE move, size_t size)
 }
 
 // Fonction pour calculer le mouvement sur une ligne (les GRID_SIZEtuiles sont a,b,c,d)
-void processLine(int *line, size_t size)
+void processLine(int *line, size_t size, int * score)
 {
     int *temp = calloc(size, sizeof(int));
     int *finalLine = calloc(size, sizeof(int));
@@ -310,6 +310,7 @@ void processLine(int *line, size_t size)
         {
             temp[i] *= 2;
             temp[i + 1] = 0;
+            *score += temp[i]; // On ajoute au score la valeur de la tuiles crée
         }
     }
 
