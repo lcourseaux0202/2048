@@ -17,8 +17,8 @@ Fonction représentant le processus 2048
 */
 void updateGameStatus(game_variable *gm);
 void addNumberOnGrid(int *grid);
-void executeMove(int *grid, enum MOVE move);
-void processLine(int *a, int *b, int *c, int *d);
+void executeMove(int *grid, enum MOVE move, size_t size);
+void processLine(int *line, size_t size);
 
 void print_grid(int *grid); // Pour tester seulement
 
@@ -146,7 +146,7 @@ void *func_moveAndScore(void *arg)
 
         if (sig == SIG_MOVE) // Gère le move
         {
-            executeMove(gm->grid, gm->move);
+            executeMove(gm->grid, gm->move, GRID_SIZE);
             pthread_kill(args->th_goal, SIG_GOAL); // Passe la main à Goal
         }
     }
@@ -180,19 +180,14 @@ void *func_goal(void *arg)
 
         if (sig == SIG_GOAL) // Gère la condition de vitoire
         {
-            //printf("Logique de goal\n");
             updateGameStatus(gm);
 
             if (gm->status == PROGRESS)
             {
                 addNumberOnGrid(gm->grid); // Ajout de la prochaine case
-                //print_grid(gm->grid);
                 printf("####\n");
             }
 
-            // Envoi des infos à display via le pipe annonyme
-            //char msg[] = "Yoooo\n";
-            //write(args->fdDisplay, msg, sizeof(msg))
             write(args->fdDisplay, gm->grid, 16*sizeof(int));
             pthread_kill(args->th_main, SIG_MAIN); // Passe la main à Main
         }
@@ -240,48 +235,76 @@ void addNumberOnGrid(int *grid)
 }
 
 // Execute le move de l'utilisateur et retourne de score obtenu par les fusion (TODO : calculer le score)
-void executeMove(int *grid, enum MOVE move)
+void executeMove(int *grid, enum MOVE move, size_t size)
 {
+    int *line = malloc(size * sizeof(int));
+    if (!line)
+        return; // ou gérer l'erreur autrement
 
-    for (int i = 0; i < GRID_SIZE; i++)
+    for (size_t i = 0; i < size; i++)
     {
-        if (move == LEFT)
+        if (move == LEFT || move == RIGHT)
         {
-            processLine(&grid[i * GRID_SIZE + 0], &grid[i * GRID_SIZE + 1], &grid[i * GRID_SIZE + 2], &grid[i * GRID_SIZE + 3]);
+            // Extraction de la ligne
+            for (size_t j = 0; j < size; j++)
+            {
+                size_t col = (move == LEFT) ? j : (size - 1 - j);
+                line[j] = grid[i * size + col];
+            }
+
+            processLine(line, size);
+
+            // Réécriture dans la grille
+            for (size_t j = 0; j < size; j++)
+            {
+                size_t col = (move == LEFT) ? j : (size - 1 - j);
+                grid[i * size + col] = line[j];
+            }
         }
-        else if (move == RIGHT)
+        else if (move == UP || move == DOWN)
         {
-            // Inversement par rapport à LEFT pour faire RIGHT
-            processLine(&grid[i * GRID_SIZE + 3], &grid[i * GRID_SIZE + 2], &grid[i * GRID_SIZE + 1], &grid[i * GRID_SIZE + 0]);
-        }
-        else if (move == UP)
-        {
-            processLine(&grid[0 * GRID_SIZE + i], &grid[1 * GRID_SIZE + i], &grid[2 * GRID_SIZE + i], &grid[3 * GRID_SIZE + i]);
-        }
-        else if (move == DOWN)
-        {
-            // Inversement par rapport à UP pour faire DOWN
-            processLine(&grid[3 * GRID_SIZE + i], &grid[2 * GRID_SIZE + i], &grid[1 * GRID_SIZE + i], &grid[0 * GRID_SIZE + i]);
+            // Extraction de la colonne
+            for (size_t j = 0; j < size; j++)
+            {
+                size_t row = (move == UP) ? j : (size - 1 - j);
+                line[j] = grid[row * size + i];
+            }
+
+            processLine(line, size);
+
+            // Réécriture dans la grille
+            for (size_t j = 0; j < size; j++)
+            {
+                size_t row = (move == UP) ? j : (size - 1 - j);
+                grid[row * size + i] = line[j];
+            }
         }
     }
+
+    free(line);
 }
 
 // Fonction pour calculer le mouvement sur une ligne (les GRID_SIZEtuiles sont a,b,c,d)
-void processLine(int *a, int *b, int *c, int *d)
+void processLine(int *line, size_t size)
 {
-    int line[4] = {*a, *b, *c, *d};
-    int temp[4] = {0, 0, 0, 0};
+    int *temp = calloc(size, sizeof(int));
+    int *finalLine = calloc(size, sizeof(int));
 
-    // On fait glisser une première fois les cases
+    if (!temp || !finalLine)
+    {
+        free(temp);
+        free(finalLine);
+        return;
+    }
+
     int pos = 0;
-    for (int i = 0; i < 4; i++)
+    for (size_t i = 0; i < size; i++)
     {
         if (line[i] != 0)
             temp[pos++] = line[i];
     }
 
-    // Si deux cases sont identiques l'une à côté de l'autre, on les fusionne
-    for (int i = 0; i < 3; i++)
+    for (size_t i = 0; i + 1 < size; i++)
     {
         if (temp[i] != 0 && temp[i] == temp[i + 1])
         {
@@ -290,20 +313,18 @@ void processLine(int *a, int *b, int *c, int *d)
         }
     }
 
-    // On redéplace pour boucher les trous créés par les fusions
-    int finalLine[4] = {0, 0, 0, 0};
     pos = 0;
-    for (int i = 0; i < 4; i++)
+    for (size_t i = 0; i < size; i++)
     {
         if (temp[i] != 0)
             finalLine[pos++] = temp[i];
     }
 
-    // Réinjecter les valeurs dans la grille
-    *a = finalLine[0];
-    *b = finalLine[1];
-    *c = finalLine[2];
-    *d = finalLine[3];
+    for (size_t i = 0; i < size; i++)
+        line[i] = finalLine[i];
+    
+    free(temp);
+    free(finalLine);
 }
 
 // Affichage de la grille, test seulement, pourra être réutilisée pour display
