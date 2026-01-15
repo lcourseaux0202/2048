@@ -17,8 +17,8 @@ Fonction représentant le processus 2048
 */
 void updateGameStatus(game_variable *gm);
 void addNumberOnGrid(int *grid);
-void executeMove(int *grid, enum MOVE move, size_t size, int * score);
-void processLine(int *line, size_t size, int * score);
+void executeMove(int *grid, enum MOVE move, size_t size, int *score);
+void processLine(int *line, size_t size, int *score);
 
 void print_grid(int *grid); // Pour tester seulement
 
@@ -146,7 +146,7 @@ void *func_moveAndScore(void *arg)
 
         if (sig == SIG_MOVE) // Gère le move
         {
-            executeMove(gm->grid, gm->move, GRID_SIZE,&gm->score);
+            executeMove(gm->grid, gm->move, GRID_SIZE, &gm->score);
             printf("Temp Score : %d\n", gm->score);
             pthread_kill(args->th_goal, SIG_GOAL); // Passe la main à Goal
         }
@@ -189,7 +189,7 @@ void *func_goal(void *arg)
                 printf("####\n");
             }
 
-            write(args->fdDisplay, gm->grid, 16*sizeof(int));
+            write(args->fdDisplay, gm->grid, 16 * sizeof(int));
             pthread_kill(args->th_main, SIG_MAIN); // Passe la main à Main
         }
     }
@@ -200,6 +200,7 @@ void *func_goal(void *arg)
 void updateGameStatus(game_variable *gm)
 {
     bool hasEmptyCell = false;
+    bool canMerge = false;
 
     for (size_t i = 0; i < GRID_SIZE * GRID_SIZE; i++)
     {
@@ -215,10 +216,23 @@ void updateGameStatus(game_variable *gm)
         {
             hasEmptyCell = true;
         }
-        // Ajouter condition qu'on puisse encore faire une move
+
+        // Vérifications si fusion possible
+        size_t col = i % GRID_SIZE;
+        size_t row = i / GRID_SIZE;
+
+        if (col + 1 < GRID_SIZE && cell == gm->grid[i + 1])
+        {
+            canMerge = true;
+        }
+
+        if (row + 1 < GRID_SIZE && cell == gm->grid[i + GRID_SIZE])
+        {
+            canMerge = true;
+        }
     }
 
-    gm->status = hasEmptyCell ? PROGRESS : LOSE;
+    gm->status = (hasEmptyCell || canMerge) ? PROGRESS : LOSE;
 }
 
 // Ajoute un nombre placé aléatoirment sur la grille (2 ou 4)
@@ -236,10 +250,11 @@ void addNumberOnGrid(int *grid)
 }
 
 // Execute le move de l'utilisateur et retourne de score obtenu par les fusion (TODO : calculer le score)
-void executeMove(int *grid, enum MOVE move, size_t size, int * score)
+void executeMove(int *grid, enum MOVE move, size_t size, int *score)
 {
     int *line = malloc(size * sizeof(int));
-    if (!line) return;
+    if (!line)
+        return;
 
     for (size_t i = 0; i < size; i++)
     {
@@ -252,7 +267,7 @@ void executeMove(int *grid, enum MOVE move, size_t size, int * score)
                 line[j] = grid[i * size + col];
             }
 
-            processLine(line, size,score);
+            processLine(line, size, score);
 
             // Réécriture dans la grille
             for (size_t j = 0; j < size; j++)
@@ -285,7 +300,7 @@ void executeMove(int *grid, enum MOVE move, size_t size, int * score)
 }
 
 // Fonction pour calculer le mouvement sur une ligne (les GRID_SIZEtuiles sont a,b,c,d)
-void processLine(int *line, size_t size, int * score)
+void processLine(int *line, size_t size, int *score)
 {
     int *temp = calloc(size, sizeof(int));
     int *finalLine = calloc(size, sizeof(int));
@@ -323,7 +338,7 @@ void processLine(int *line, size_t size, int * score)
 
     for (size_t i = 0; i < size; i++)
         line[i] = finalLine[i];
-    
+
     free(temp);
     free(finalLine);
 }
