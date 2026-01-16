@@ -28,39 +28,57 @@ int proc_display(int fdDisplay)
     sa.sa_handler = stop_display;
     sigaction(SIGTERM, &sa, NULL);
 
-    int buffer[1024];
+    game_variable *gm;
+    CHKNULL(gm = calloc(1, sizeof(game_variable)));
+    CHKNULL(gm->grid = calloc(GRID_SIZE * GRID_SIZE, sizeof(int)));
 
+    printf("\n\n            Start of the game!\n");
     while (displaying)
     {
-        ssize_t nb = read(fdDisplay, buffer, 16*sizeof(int));
+        ssize_t nb = read(fdDisplay, gm->grid, 16*sizeof(int));
+        //ssize_t nb = read(fdDisplay, &gm, sizeof(gm));
 
         if (nb <= 0)
             break;
 
-        printf("\n\n|======||======||======||======|\n");
+        read(fdDisplay, &gm->score, sizeof(int));
+        read(fdDisplay, &gm->status, sizeof(int));
+
+
+        printf("\n\nScore : %d\n", gm->score);
+        printf("|======||======||======||======|\n");
         for (size_t i = 0; i < GRID_SIZE; i++)
         {
             for (size_t j = 0; j < GRID_SIZE; j++)
             {
-                if (buffer[i * GRID_SIZE + j] < 16)
+                if (gm->grid[i * GRID_SIZE + j] < 16)
                 {
-                    printf("|   %d  |", buffer[i * GRID_SIZE + j]);
+                    printf("|   %d  |", gm->grid[i * GRID_SIZE + j]);
                 }
-                else if (buffer[i * GRID_SIZE + j] < 128)
+                else if (gm->grid[i * GRID_SIZE + j] < 128)
                 {
-                    printf("|  %d  |", buffer[i * GRID_SIZE + j]);
+                    printf("|  %d  |", gm->grid[i * GRID_SIZE + j]);
                 }
-                else if (buffer[i * GRID_SIZE + j] < 1024)
+                else if (gm->grid[i * GRID_SIZE + j] < 1024)
                 {
-                    printf("|  %d |", buffer[i * GRID_SIZE + j]);
+                    printf("|  %d |", gm->grid[i * GRID_SIZE + j]);
                 }
                 else
                 {
-                    printf("| %d |", buffer[i * GRID_SIZE + j]);
+                    printf("| %d |", gm->grid[i * GRID_SIZE + j]);
                 }
 
             }
             printf("\n|======||======||======||======|\n");
+        }
+
+
+        if (gm->status == LOSE) {
+            printf("LOSERRRRRRRRRR!\n");
+        }
+
+        if (gm->status == WIN) {
+            printf("WINNERRRRRRRRR!\n");
         }
 
         fflush(stdout);

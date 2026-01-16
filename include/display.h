@@ -1,5 +1,7 @@
 #pragma once
 
+#include "game.h"
+
 #include <stdint.h>
 #include <pthread.h>
 

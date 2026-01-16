@@ -37,7 +37,6 @@ int proc_2048(char *path)
 
         // Lancement de la fonction d'affichage
         proc_display(fdDisplay[0]);
-        printf("test\n");
         close(fdDisplay[0]); // Fermeture du pipe de lecture
         return 0;
     }
@@ -147,7 +146,7 @@ void *func_moveAndScore(void *arg)
         if (sig == SIG_MOVE) // Gère le move
         {
             executeMove(gm->grid, gm->move, GRID_SIZE, &gm->score);
-            printf("Temp Score : %d\n", gm->score);
+            //printf("Temp Score : %d\n", gm->score);// aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
             pthread_kill(args->th_goal, SIG_GOAL); // Passe la main à Goal
         }
     }
@@ -169,9 +168,11 @@ void *func_goal(void *arg)
     sigaddset(&set, SIGTERM);  // Arrêt
 
     pthread_sigmask(SIG_BLOCK, &set, NULL);
-    printf("2048\n");
-    print_grid(gm->grid); // Affichage de départ
-    printf("####\n");
+    
+    write(args->fdDisplay, gm->grid, 16 * sizeof(int));
+    write(args->fdDisplay, &gm->score, sizeof(int));
+    write(args->fdDisplay, &gm->status, sizeof(int));
+    
     while (1)
     {
         sigwait(&set, &sig); // Attend un signal
@@ -186,10 +187,11 @@ void *func_goal(void *arg)
             if (gm->status == PROGRESS)
             {
                 addNumberOnGrid(gm->grid); // Ajout de la prochaine case
-                printf("####\n");
             }
-
+            
             write(args->fdDisplay, gm->grid, 16 * sizeof(int));
+            write(args->fdDisplay, &gm->score, sizeof(int));
+            write(args->fdDisplay, &gm->status, sizeof(int));
             pthread_kill(args->th_main, SIG_MAIN); // Passe la main à Main
         }
     }
@@ -238,6 +240,18 @@ void updateGameStatus(game_variable *gm)
 // Ajoute un nombre placé aléatoirment sur la grille (2 ou 4)
 void addNumberOnGrid(int *grid)
 {
+    // Pour quand la grille est pleine, mais que des mouvs sont encore possibles
+    int testGridFull = 1;
+    for (size_t i = 0; i < GRID_SIZE * GRID_SIZE; i++) {
+        if (grid[i] == 0) {
+            testGridFull = 0;
+            break;
+        }
+    }
+    if (testGridFull == 1) {
+        return;
+    }
+
     // Choix de l'emplacement
     int loc;
     do
