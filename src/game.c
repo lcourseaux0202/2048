@@ -17,8 +17,8 @@ Fonction représentant le processus 2048
 */
 void updateGameStatus(game_variable *gm);
 void addNumberOnGrid(int *grid);
-void executeMove(int *grid, enum MOVE move, size_t size, int *score);
-void processLine(int *line, size_t size, int *score);
+enum VALIDITY executeMove(int *grid, enum MOVE move, size_t size, int *score);
+enum VALIDITY processLine(int *line, size_t size, int *score);
 
 void print_grid(int *grid); // Pour tester seulement
 
@@ -123,6 +123,7 @@ void *func_moveAndScore(void *arg)
 {
     arg_moveAndScore *args = (arg_moveAndScore *)arg; // Cast des arguments
     game_variable *gm = args->gm;
+    gm->validity = VALID;
 
     // Mise en place de la gestion des signaux
     sigset_t set;
@@ -143,8 +144,8 @@ void *func_moveAndScore(void *arg)
 
         if (sig == SIG_MOVE) // Gère le move
         {
-            executeMove(gm->grid, gm->move, GRID_SIZE, &gm->score);
-            //printf("Temp Score : %d\n", gm->score);// aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+            gm->validity = executeMove(gm->grid, gm->move, GRID_SIZE, &gm->score);
+            //printf("Temp Score : %d\n", gm->score);
             pthread_kill(args->th_goal, SIG_GOAL); // Passe la main à Goal
         }
     }
@@ -182,7 +183,7 @@ void *func_goal(void *arg)
         {
             updateGameStatus(gm);
 
-            if (gm->status == PROGRESS)
+            if (gm->status == PROGRESS && gm->validity == VALID)
             {
                 addNumberOnGrid(gm->grid); // Ajout de la prochaine case
             }
@@ -261,12 +262,14 @@ void addNumberOnGrid(int *grid)
     *(grid + loc) = rand() % 100 < 90 ? 2 : 4;
 }
 
-// Execute le move de l'utilisateur et retourne de score obtenu par les fusion (TODO : calculer le score)
-void executeMove(int *grid, enum MOVE move, size_t size, int *score)
+// Execute le move de l'utilisateur et retourne de score obtenu par les fusion 
+enum VALIDITY executeMove(int *grid, enum MOVE move, size_t size, int *score)
 {
+    enum VALIDITY validity = INVALID;
+
     int *line = malloc(size * sizeof(int));
     if (!line)
-        return;
+        return validity;
 
     for (size_t i = 0; i < size; i++)
     {
@@ -279,7 +282,9 @@ void executeMove(int *grid, enum MOVE move, size_t size, int *score)
                 line[j] = grid[i * size + col];
             }
 
-            processLine(line, size, score);
+            if (processLine(line, size, score) == VALID) {
+                validity = VALID;
+            }
 
             // Réécriture dans la grille
             for (size_t j = 0; j < size; j++)
@@ -297,7 +302,9 @@ void executeMove(int *grid, enum MOVE move, size_t size, int *score)
                 line[j] = grid[row * size + i];
             }
 
-            processLine(line, size, score);
+            if (processLine(line, size, score) == VALID) {
+                validity = VALID;
+            }
 
             // Réécriture dans la grille
             for (size_t j = 0; j < size; j++)
@@ -309,27 +316,29 @@ void executeMove(int *grid, enum MOVE move, size_t size, int *score)
     }
 
     free(line);
+    return validity;
 }
 
 // Fonction pour calculer le mouvement sur une ligne (les GRID_SIZEtuiles sont a,b,c,d)
-void processLine(int *line, size_t size, int *score)
+enum VALIDITY processLine(int *line, size_t size, int *score)
 {
     int *temp = calloc(size, sizeof(int));
     int *finalLine = calloc(size, sizeof(int));
+
+    enum VALIDITY validity = INVALID;
 
     if (!temp || !finalLine)
     {
         free(temp);
         free(finalLine);
-        return;
+        return validity;
     }
 
     int pos = 0;
     for (size_t i = 0; i < size; i++)
     {
         if (line[i] != 0)
-            temp[pos++] = line[i];
-    }
+            temp[pos++] = line[i];    }
 
     for (size_t i = 0; i + 1 < size; i++)
     {
@@ -348,11 +357,18 @@ void processLine(int *line, size_t size, int *score)
             finalLine[pos++] = temp[i];
     }
 
-    for (size_t i = 0; i < size; i++)
+    for (size_t i = 0; i < size; i++) {
+        if (line[i] != finalLine[i]) {
+            validity = VALID;
+        }
         line[i] = finalLine[i];
+
+    }
 
     free(temp);
     free(finalLine);
+
+    return validity;
 }
 
 // Affichage de la grille, test seulement, pourra être réutilisée pour display

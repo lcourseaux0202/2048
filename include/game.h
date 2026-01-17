@@ -24,11 +24,18 @@ enum GAMESTATUS
     LOSE
 };
 
+enum VALIDITY
+{
+    VALID,
+    INVALID
+};
+
 typedef struct game_variable
 {
     int *grid;
     int score;
     char move;
+    enum VALIDITY validity;
     enum GAMESTATUS status;
 } game_variable;
 
