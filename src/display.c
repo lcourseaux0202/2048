@@ -35,6 +35,7 @@ int proc_display(int fdDisplay)
     printf("\n\n            Start of the game!\n");
     while (displaying)
     {
+        printf(CLEAR);
         ssize_t nb = read(fdDisplay, gm->grid, 16*sizeof(int));
         //ssize_t nb = read(fdDisplay, &gm, sizeof(gm));
 
