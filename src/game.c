@@ -49,6 +49,8 @@ int proc_2048(char *path)
     CHKNULL(gm->grid = calloc(GRID_SIZE * GRID_SIZE, sizeof(int)));
 
     // int (*grid2D)[GRID_SIZE] = (int (*)[GRID_SIZE])gm->grid; // Pointeur de manipulation [i][j]
+    addNumberOnGrid(gm->grid); // Ajout des deux premières cases
+    addNumberOnGrid(gm->grid);
 
     // Ouverture pipe nommé
     int fdInput;
@@ -84,10 +86,6 @@ int proc_2048(char *path)
     sigaddset(&set, SIG_MAIN); // Affichage terminer
 
     pthread_sigmask(SIG_BLOCK, &set, NULL);
-
-    // Début du jeu
-    addNumberOnGrid(gm->grid); // Ajout des deux premières cases
-    addNumberOnGrid(gm->grid);
 
     enum MOVE move;
     while (read(fdInput, &move, sizeof(move)) == sizeof(move))
