@@ -20,8 +20,6 @@ void addNumberOnGrid(int *grid);
 enum VALIDITY executeMove(int *grid, enum MOVE move, size_t size, int *score);
 enum VALIDITY processLine(int *line, size_t size, int *score);
 
-void print_grid(int *grid); // Pour tester seulement
-
 int proc_2048(char *path)
 {
     srand(time(NULL));
@@ -145,7 +143,7 @@ void *func_moveAndScore(void *arg)
         if (sig == SIG_MOVE) // Gère le move
         {
             gm->validity = executeMove(gm->grid, gm->move, GRID_SIZE, &gm->score);
-            //printf("Temp Score : %d\n", gm->score);
+            // printf("Temp Score : %d\n", gm->score);
             pthread_kill(args->th_goal, SIG_GOAL); // Passe la main à Goal
         }
     }
@@ -167,11 +165,11 @@ void *func_goal(void *arg)
     sigaddset(&set, SIGTERM);  // Arrêt
 
     pthread_sigmask(SIG_BLOCK, &set, NULL);
-    
+
     write(args->fdDisplay, gm->grid, 16 * sizeof(int));
     write(args->fdDisplay, &gm->score, sizeof(int));
     write(args->fdDisplay, &gm->status, sizeof(int));
-    
+
     while (1)
     {
         sigwait(&set, &sig); // Attend un signal
@@ -187,7 +185,7 @@ void *func_goal(void *arg)
             {
                 addNumberOnGrid(gm->grid); // Ajout de la prochaine case
             }
-            
+
             write(args->fdDisplay, gm->grid, 16 * sizeof(int));
             write(args->fdDisplay, &gm->score, sizeof(int));
             write(args->fdDisplay, &gm->status, sizeof(int));
@@ -241,13 +239,16 @@ void addNumberOnGrid(int *grid)
 {
     // Pour quand la grille est pleine, mais que des mouvs sont encore possibles
     int testGridFull = 1;
-    for (size_t i = 0; i < GRID_SIZE * GRID_SIZE; i++) {
-        if (grid[i] == 0) {
+    for (size_t i = 0; i < GRID_SIZE * GRID_SIZE; i++)
+    {
+        if (grid[i] == 0)
+        {
             testGridFull = 0;
             break;
         }
     }
-    if (testGridFull == 1) {
+    if (testGridFull == 1)
+    {
         return;
     }
 
@@ -262,7 +263,7 @@ void addNumberOnGrid(int *grid)
     *(grid + loc) = rand() % 100 < 90 ? 2 : 4;
 }
 
-// Execute le move de l'utilisateur et retourne de score obtenu par les fusion 
+// Execute le move de l'utilisateur et retourne de score obtenu par les fusion
 enum VALIDITY executeMove(int *grid, enum MOVE move, size_t size, int *score)
 {
     enum VALIDITY validity = INVALID;
@@ -282,7 +283,8 @@ enum VALIDITY executeMove(int *grid, enum MOVE move, size_t size, int *score)
                 line[j] = grid[i * size + col];
             }
 
-            if (processLine(line, size, score) == VALID) {
+            if (processLine(line, size, score) == VALID)
+            {
                 validity = VALID;
             }
 
@@ -302,7 +304,8 @@ enum VALIDITY executeMove(int *grid, enum MOVE move, size_t size, int *score)
                 line[j] = grid[row * size + i];
             }
 
-            if (processLine(line, size, score) == VALID) {
+            if (processLine(line, size, score) == VALID)
+            {
                 validity = VALID;
             }
 
@@ -338,7 +341,8 @@ enum VALIDITY processLine(int *line, size_t size, int *score)
     for (size_t i = 0; i < size; i++)
     {
         if (line[i] != 0)
-            temp[pos++] = line[i];    }
+            temp[pos++] = line[i];
+    }
 
     for (size_t i = 0; i + 1 < size; i++)
     {
@@ -357,29 +361,17 @@ enum VALIDITY processLine(int *line, size_t size, int *score)
             finalLine[pos++] = temp[i];
     }
 
-    for (size_t i = 0; i < size; i++) {
-        if (line[i] != finalLine[i]) {
+    for (size_t i = 0; i < size; i++)
+    {
+        if (line[i] != finalLine[i])
+        {
             validity = VALID;
         }
         line[i] = finalLine[i];
-
     }
 
     free(temp);
     free(finalLine);
 
     return validity;
-}
-
-// Affichage de la grille, test seulement, pourra être réutilisée pour display
-void print_grid(int *grid)
-{
-    for (size_t i = 0; i < GRID_SIZE; i++)
-    {
-        for (size_t j = 0; j < GRID_SIZE; j++)
-        {
-            printf("%d ", grid[i * GRID_SIZE + j]);
-        }
-        printf("\n");
-    }
 }

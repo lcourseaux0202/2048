@@ -35,16 +35,14 @@ int proc_display(int fdDisplay)
     printf("\n\n            Start of the game!\n");
     while (displaying)
     {
-        printf(CLEAR);      // clear le terminal
-        ssize_t nb = read(fdDisplay, gm->grid, 16*sizeof(int));
-        //ssize_t nb = read(fdDisplay, &gm, sizeof(gm));
+        printf(CLEAR); // clear le terminal
+        ssize_t nb = read(fdDisplay, gm->grid, 16 * sizeof(int));
 
         if (nb <= 0)
             break;
 
         read(fdDisplay, &gm->score, sizeof(int));
         read(fdDisplay, &gm->status, sizeof(int));
-
 
         printf("\n\nScore : %d\n", gm->score);
         printf("|======||======||======||======|\n");
@@ -54,71 +52,56 @@ int proc_display(int fdDisplay)
             {
                 int num = gm->grid[i * GRID_SIZE + j];
 
-                switch (num) {
-                    case 2:
-                        printf("|   " GREEN "%d" DEFAULT "  |", num);
-                        break;
-                    case 4:
-                        printf("|   " YELLOW "%d" DEFAULT "  |", num);
-                        break;
-                    case 8:
-                        printf("|   " BLUE "%d" DEFAULT "  |", num);
-                        break;
-                    case 16:
-                        printf("|  " PURPLE "%d" DEFAULT "  |", num);
-                        break;
-                    case 32:
-                        printf("|  " CYAN "%d" DEFAULT "  |", num);
-                        break;
-                    case 64:
-                        printf("|  " WHITE "%d" DEFAULT "  |", num);
-                        break;
-                    case 128:
-                        printf("|  " RED "%d" DEFAULT " |", num);
-                        break;
-                    case 256:
-                        printf("|  " GREEN "%d" DEFAULT " |", num);
-                        break;
-                    case 512:
-                        printf("|  " YELLOW "%d" DEFAULT " |", num);
-                        break;
-                    case 1024:
-                        printf("| " BLUE "%d" DEFAULT " |", num);
-                        break;
-                    case 2048:
-                        printf("| " PURPLE "%d" DEFAULT " |", num);
-                        break;
-                     default:
-                        printf("|   %d  |", num);
-                }
-                /*if (num < 16)
+                switch (num)
                 {
-                    printf("|   \033[0;31m%d\033[0m  |", gm->grid[i * GRID_SIZE + j]);
+                case 2:
+                    printf("|   " GREEN "%d" DEFAULT "  |", num);
+                    break;
+                case 4:
+                    printf("|   " YELLOW "%d" DEFAULT "  |", num);
+                    break;
+                case 8:
+                    printf("|   " BLUE "%d" DEFAULT "  |", num);
+                    break;
+                case 16:
+                    printf("|  " PURPLE "%d" DEFAULT "  |", num);
+                    break;
+                case 32:
+                    printf("|  " CYAN "%d" DEFAULT "  |", num);
+                    break;
+                case 64:
+                    printf("|  " WHITE "%d" DEFAULT "  |", num);
+                    break;
+                case 128:
+                    printf("|  " RED "%d" DEFAULT " |", num);
+                    break;
+                case 256:
+                    printf("|  " GREEN "%d" DEFAULT " |", num);
+                    break;
+                case 512:
+                    printf("|  " YELLOW "%d" DEFAULT " |", num);
+                    break;
+                case 1024:
+                    printf("| " BLUE "%d" DEFAULT " |", num);
+                    break;
+                case 2048:
+                    printf("| " PURPLE "%d" DEFAULT " |", num);
+                    break;
+                default:
+                    printf("|   %d  |", num);
                 }
-                else if (gm->grid[i * GRID_SIZE + j] < 128)
-                {
-                    printf("|  \033[0;32m%d\033[0m  |", gm->grid[i * GRID_SIZE + j]);
-                }
-                else if (gm->grid[i * GRID_SIZE + j] < 1024)
-                {
-                    printf("|  \033[0;33m%d\033[0m |", gm->grid[i * GRID_SIZE + j]);
-                }
-                else
-                {
-                    printf("| \033[0;34m%d\033[0m |", gm->grid[i * GRID_SIZE + j]);
-                }*/
-
             }
             printf("\n|======||======||======||======|\n");
         }
 
-
-        if (gm->status == LOSE) {
-            printf("LOSERRRRRRRRRR!\n");
+        if (gm->status == LOSE)
+        {
+            printf("You lose!\n");
         }
 
-        if (gm->status == WIN) {
-            printf("WINNERRRRRRRRR!\n");
+        if (gm->status == WIN)
+        {
+            printf("You win!\n");
         }
 
         fflush(stdout);
