@@ -88,7 +88,7 @@ int proc_display(int fdDisplay)
                     printf("| " PURPLE "%d" DEFAULT " |", num);
                     break;
                 default:
-                    printf("|   %d  |", num);
+                    printf("|      |");
                 }
             }
             printf("\n|======||======||======||======|\n");
