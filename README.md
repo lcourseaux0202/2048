@@ -15,3 +15,7 @@ make
 Le jeu est lancé, utilisez les flèches du clavier pour déplacer les tuiles.
 
 Si vous voulez quitter, pressez 'q'.
+
+## Prévisualisation
+
+![Preview](./preview.png)
