@@ -43,7 +43,7 @@ char getch()
 
 int main()
 {
-    char *path = "/tmp/pipe_move";
+    char *path = "./pipe_move";
 
     if (access(path, F_OK) != 0) // https://stackoverflow.com/questions/230062/whats-the-best-way-to-check-if-a-file-exists-in-c
     {
@@ -62,7 +62,6 @@ int main()
             return proc_2048(path);
         }
         else // Processus père
-
         {
             // Configuration du sigaction pour stopper le programme proprement
             struct sigaction sa;
@@ -78,7 +77,7 @@ int main()
     if (fd == -1)
     {
         perror("open pipe");
-        kill(pid, SIGTERM);
+        // kill(pid, SIGTERM);
         unlink(path);
         return EXIT_FAILURE;
     }
@@ -87,7 +86,9 @@ int main()
     while (running)
     {
         char c = getch();
-        enum MOVE m = NONE;
+        message m;
+        m.gameId = getpid();
+        m.move = NONE;
 
         if (c == 27) // flèches
         {
@@ -96,26 +97,26 @@ int main()
                 switch (getch())
                 {
                 case 'A':
-                    m = UP;
+                    m.move = UP;
                     break;
                 case 'B':
-                    m = DOWN;
+                    m.move = DOWN;
                     break;
                 case 'C':
-                    m = RIGHT;
+                    m.move = RIGHT;
                     break;
                 case 'D':
-                    m = LEFT;
+                    m.move = LEFT;
                     break;
                 }
             }
         }
         else if (c == 'q')
         {
-            m = QUIT;
+            m.move = QUIT;
         }
 
-        if (m != NONE)
+        if (m.move != NONE)
         {
             ssize_t w = write(fd, &m, sizeof(m));
             if (w != sizeof(m))

@@ -10,6 +10,7 @@
 enum MOVE
 {
     NONE = 0,
+    START,
     UP,
     DOWN,
     RIGHT,
@@ -29,6 +30,12 @@ enum VALIDITY
     VALID,
     INVALID
 };
+
+typedef struct message
+{
+    pid_t gameId;
+    enum MOVE move;
+} message;
 
 typedef struct game_variable
 {

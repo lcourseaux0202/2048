@@ -15,6 +15,8 @@
 /*
 Fonction représentant le processus 2048
 */
+
+void addNewGame();
 void updateGameStatus(game_variable *gm);
 void addNumberOnGrid(int *grid);
 enum VALIDITY executeMove(int *grid, enum MOVE move, size_t size, int *score);
@@ -85,13 +87,18 @@ int proc_2048(char *path)
 
     pthread_sigmask(SIG_BLOCK, &set, NULL);
 
-    enum MOVE move;
-    while (read(fdInput, &move, sizeof(move)) == sizeof(move))
+    message m;
+    while (read(fdInput, &m, sizeof(m)) == sizeof(m))
     {
-        if (move == QUIT || gm->status != PROGRESS)
+        if (m.move == QUIT || gm->status != PROGRESS)
             break;
 
-        gm->move = move;
+        if (m.move == START)
+        {
+            addNewGame();
+        }
+
+        gm->move = m.move;
         // Envoie d'un signal à M&S pour traiter le coup
         pthread_kill(th_moveAndScore, SIG_MOVE);
 
@@ -115,6 +122,10 @@ int proc_2048(char *path)
     close(fdDisplay[1]); // Fermeture du pipe d'écriture
     wait(NULL);          // Attente du fils (Display)
     return 0;
+}
+
+void addNewGame()
+{
 }
 
 void *func_moveAndScore(void *arg)
