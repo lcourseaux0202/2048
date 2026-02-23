@@ -43,34 +43,38 @@ char getch()
 
 int main()
 {
-    // Création du pipe nommé
     char *path = "/tmp/pipe_move";
 
-    if (mkfifo(path, 0666) == -1 && errno != EEXIST)
+    if (access(path, F_OK) != 0) // https://stackoverflow.com/questions/230062/whats-the-best-way-to-check-if-a-file-exists-in-c
     {
-        perror("mkfifo");
-        return EXIT_FAILURE;
+        // Si le pipe n'existe pas : création du pipe nommé + lancement de proc_2048
+        if (mkfifo(path, 0666) == -1 && errno != EEXIST)
+        {
+            perror("mkfifo");
+            return EXIT_FAILURE;
+        }
+
+        pid_t pid = fork();
+        CHKERR(pid);
+
+        if (pid == 0) // Processus fils
+        {
+            return proc_2048(path);
+        }
+        else // Processus père
+
+        {
+            // Configuration du sigaction pour stopper le programme proprement
+            struct sigaction sa;
+            memset(&sa, 0, sizeof(sa));
+            sa.sa_handler = stop_running;
+            sigemptyset(&sa.sa_mask);
+            sa.sa_flags = 0;
+            sigaction(SIGTERM, &sa, NULL);
+        }
     }
 
-    int fd;
-    pid_t pid = fork();
-    CHKERR(pid);
-
-    if (pid == 0) // Processus fils
-    {
-        return proc_2048(path);
-    }
-
-    // Processus père
-    // Configuration du sigaction pour stopper le programme proprement
-    struct sigaction sa;
-    memset(&sa, 0, sizeof(sa));
-    sa.sa_handler = stop_running;
-    sigemptyset(&sa.sa_mask);
-    sa.sa_flags = 0;
-    sigaction(SIGTERM, &sa, NULL);
-
-    fd = open(path, O_WRONLY);
+    int fd = open(path, O_WRONLY);
     if (fd == -1)
     {
         perror("open pipe");
@@ -91,10 +95,18 @@ int main()
             {
                 switch (getch())
                 {
-                case 'A': m = UP; break;
-                case 'B': m = DOWN; break;
-                case 'C': m = RIGHT; break;
-                case 'D': m = LEFT; break;
+                case 'A':
+                    m = UP;
+                    break;
+                case 'B':
+                    m = DOWN;
+                    break;
+                case 'C':
+                    m = RIGHT;
+                    break;
+                case 'D':
+                    m = LEFT;
+                    break;
                 }
             }
         }
@@ -108,12 +120,13 @@ int main()
             ssize_t w = write(fd, &m, sizeof(m));
             if (w != sizeof(m))
             {
-                if (errno == EPIPE) break; // pipe fermé
+                if (errno == EPIPE)
+                    break; // pipe fermé
                 perror("write");
             }
         }
     }
-    close(fd); // fermeture du pipe
+    close(fd);    // fermeture du pipe
     unlink(path); // Suppression du pipe
     return EXIT_SUCCESS;
 }

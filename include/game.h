@@ -32,6 +32,7 @@ enum VALIDITY
 
 typedef struct game_variable
 {
+    pid_t gameId;
     int *grid;
     int score;
     char move;
