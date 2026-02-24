@@ -70,6 +70,7 @@ int main()
             sigemptyset(&sa.sa_mask);
             sa.sa_flags = 0;
             sigaction(SIGTERM, &sa, NULL);
+            sigaction(SIGINT, &sa, NULL);
         }
     }
 

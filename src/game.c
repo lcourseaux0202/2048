@@ -44,13 +44,16 @@ int proc_2048(char *path)
     close(fdDisplay[0]); // Fermeture du pipe de lecture
 
     // Création des variables (pointeurs) pour la partie
+    game_variable games[8];
     game_variable *gm;
     CHKNULL(gm = calloc(1, sizeof(game_variable)));
     CHKNULL(gm->grid = calloc(GRID_SIZE * GRID_SIZE, sizeof(int)));
 
+    games[0] = *gm;
+
     // int (*grid2D)[GRID_SIZE] = (int (*)[GRID_SIZE])gm->grid; // Pointeur de manipulation [i][j]
-    addNumberOnGrid(gm->grid); // Ajout des deux premières cases
-    addNumberOnGrid(gm->grid);
+    addNumberOnGrid(games[0].grid); // Ajout des deux premières cases
+    addNumberOnGrid(games[0].grid);
 
     // Ouverture pipe nommé
     int fdInput;
@@ -70,11 +73,11 @@ int proc_2048(char *path)
     pthread_t th_moveAndScore = 0, th_goal = 0;
 
     // Thread Goal
-    arg_goal argGoal = {.gm = gm, .th_main = pthread_self(), .fdDisplay = fdDisplay[1]};
+    arg_goal argGoal = {.gm = &games[0], .th_main = pthread_self(), .fdDisplay = fdDisplay[1]};
     pthread_create(&th_goal, NULL, func_goal, &argGoal);
 
     // Thread Move&Score
-    arg_moveAndScore argMoveAndScore = {.gm = gm, .th_goal = th_goal};
+    arg_moveAndScore argMoveAndScore = {.gm = &games[0], .th_goal = th_goal};
     pthread_create(&th_moveAndScore, NULL, func_moveAndScore, &argMoveAndScore);
 
     // Thread Main
@@ -98,7 +101,7 @@ int proc_2048(char *path)
             addNewGame();
         }
 
-        gm->move = m.move;
+        games[0].move = m.move;
         // Envoie d'un signal à M&S pour traiter le coup
         pthread_kill(th_moveAndScore, SIG_MOVE);
 
