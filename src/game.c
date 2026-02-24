@@ -17,6 +17,7 @@ Fonction représentant le processus 2048
 */
 
 void addNewGame();
+game_variable *getGame(game_variable **games, pid_t gameId);
 void updateGameStatus(game_variable *gm);
 void addNumberOnGrid(int *grid);
 enum VALIDITY executeMove(int *grid, enum MOVE move, size_t size, int *score);
@@ -44,16 +45,16 @@ int proc_2048(char *path)
     close(fdDisplay[0]); // Fermeture du pipe de lecture
 
     // Création des variables (pointeurs) pour la partie
-    game_variable games[8];
+    game_variable *games[8];
     game_variable *gm;
     CHKNULL(gm = calloc(1, sizeof(game_variable)));
     CHKNULL(gm->grid = calloc(GRID_SIZE * GRID_SIZE, sizeof(int)));
 
-    games[0] = *gm;
+    games[0] = gm;
 
     // int (*grid2D)[GRID_SIZE] = (int (*)[GRID_SIZE])gm->grid; // Pointeur de manipulation [i][j]
-    addNumberOnGrid(games[0].grid); // Ajout des deux premières cases
-    addNumberOnGrid(games[0].grid);
+    addNumberOnGrid(games[0]->grid); // Ajout des deux premières cases
+    addNumberOnGrid(games[0]->grid);
 
     // Ouverture pipe nommé
     int fdInput;
@@ -73,11 +74,11 @@ int proc_2048(char *path)
     pthread_t th_moveAndScore = 0, th_goal = 0;
 
     // Thread Goal
-    arg_goal argGoal = {.gm = &games[0], .th_main = pthread_self(), .fdDisplay = fdDisplay[1]};
+    arg_goal argGoal = {.gm = gm, .th_main = pthread_self(), .fdDisplay = fdDisplay[1]};
     pthread_create(&th_goal, NULL, func_goal, &argGoal);
 
     // Thread Move&Score
-    arg_moveAndScore argMoveAndScore = {.gm = &games[0], .th_goal = th_goal};
+    arg_moveAndScore argMoveAndScore = {.gm = gm, .th_goal = th_goal};
     pthread_create(&th_moveAndScore, NULL, func_moveAndScore, &argMoveAndScore);
 
     // Thread Main
@@ -93,21 +94,26 @@ int proc_2048(char *path)
     message m;
     while (read(fdInput, &m, sizeof(m)) == sizeof(m))
     {
-        if (m.move == QUIT || gm->status != PROGRESS)
-            break;
-
         if (m.move == START)
         {
-            games[0].gameId = m.gameId;
+            games[0]->gameId = m.gameId; // à remplacer par une fonction qui ajoute une nouvelle partie
         }
 
-        games[0].move = m.move;
-        // Envoie d'un signal à M&S pour traiter le coup
-        pthread_kill(th_moveAndScore, SIG_MOVE);
+        gm = getGame(games, m.gameId);
+        if (gm != NULL)
+        {
+            if (m.move == QUIT || gm->status != PROGRESS)
+                break;
 
-        // Attente de Goal et de display
-        sigwait(&set, &sig); // Attend un signal
-        sigwait(&set, &sig); // Attend un signal
+            gm->move = m.move;
+            // Envoie d'un signal à M&S pour traiter le coup
+
+            pthread_kill(th_moveAndScore, SIG_MOVE);
+
+            // Attente de Goal et de display
+            sigwait(&set, &sig); // Attend un signal
+            sigwait(&set, &sig); // Attend un signal
+        }
     }
 
     // Arrêt des proc et threads
@@ -127,8 +133,18 @@ int proc_2048(char *path)
     return 0;
 }
 
-void addNewGame()
+void addNewGame() {}
+
+game_variable *getGame(game_variable **games, pid_t gameId)
 {
+    for (size_t i = 0; i < 8; i++)
+    {
+        if (games[i] && games[i]->gameId == gameId)
+        {
+            return games[i];
+        }
+    }
+    return NULL;
 }
 
 void *func_moveAndScore(void *arg)
