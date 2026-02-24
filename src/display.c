@@ -36,6 +36,7 @@ int proc_display(int fdDisplay)
     while (displaying)
     {
         printf(CLEAR); // clear le terminal
+        read(fdDisplay, &gm->gameId, sizeof(int));
         ssize_t nb = read(fdDisplay, gm->grid, 16 * sizeof(int));
 
         if (nb <= 0)
@@ -44,7 +45,7 @@ int proc_display(int fdDisplay)
         read(fdDisplay, &gm->score, sizeof(int));
         read(fdDisplay, &gm->status, sizeof(int));
 
-        printf("\n\nScore : %d\n", gm->score);
+        printf("\n\nScore : %d          Game ID : %d\n", gm->score, gm->gameId);
         printf("|======||======||======||======|\n");
         for (size_t i = 0; i < GRID_SIZE; i++)
         {

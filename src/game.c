@@ -98,7 +98,7 @@ int proc_2048(char *path)
 
         if (m.move == START)
         {
-            addNewGame();
+            games[0].gameId = m.gameId;
         }
 
         games[0].move = m.move;
@@ -180,6 +180,7 @@ void *func_goal(void *arg)
 
     pthread_sigmask(SIG_BLOCK, &set, NULL);
 
+    write(args->fdDisplay, &gm->gameId, sizeof(pid_t));
     write(args->fdDisplay, gm->grid, 16 * sizeof(int));
     write(args->fdDisplay, &gm->score, sizeof(int));
     write(args->fdDisplay, &gm->status, sizeof(int));
@@ -200,6 +201,7 @@ void *func_goal(void *arg)
                 addNumberOnGrid(gm->grid); // Ajout de la prochaine case
             }
 
+            write(args->fdDisplay, &gm->gameId, sizeof(pid_t));
             write(args->fdDisplay, gm->grid, 16 * sizeof(int));
             write(args->fdDisplay, &gm->score, sizeof(int));
             write(args->fdDisplay, &gm->status, sizeof(int));

@@ -83,6 +83,16 @@ int main()
         return EXIT_FAILURE;
     }
 
+    message mStart;
+    mStart.gameId = getpid();
+    mStart.move = START;
+
+    ssize_t wStart = write(fd, &mStart, sizeof(mStart));
+    if (wStart != sizeof(mStart))
+    {
+        perror("write");
+    }
+
     running = 1;
     while (running)
     {
