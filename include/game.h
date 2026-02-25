@@ -49,13 +49,13 @@ typedef struct game_variable
 
 typedef struct arg_moveAndScore
 {
-    game_variable *gm;
+    game_variable **gm;
     pthread_t th_goal;
 } arg_moveAndScore;
 
 typedef struct arg_goal
 {
-    game_variable *gm;
+    game_variable **gm;
     pthread_t th_main;
     int fdDisplay;
 } arg_goal;

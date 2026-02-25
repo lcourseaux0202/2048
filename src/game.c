@@ -16,7 +16,7 @@
 Fonction représentant le processus 2048
 */
 
-void addNewGame();
+int addNewGame(game_variable **games, pid_t gameId);
 game_variable *getGame(game_variable **games, pid_t gameId);
 void updateGameStatus(game_variable *gm);
 void addNumberOnGrid(int *grid);
@@ -50,12 +50,6 @@ int proc_2048(char *path)
     CHKNULL(gm = calloc(1, sizeof(game_variable)));
     CHKNULL(gm->grid = calloc(GRID_SIZE * GRID_SIZE, sizeof(int)));
 
-    games[0] = gm;
-
-    // int (*grid2D)[GRID_SIZE] = (int (*)[GRID_SIZE])gm->grid; // Pointeur de manipulation [i][j]
-    addNumberOnGrid(games[0]->grid); // Ajout des deux premières cases
-    addNumberOnGrid(games[0]->grid);
-
     // Ouverture pipe nommé
     int fdInput;
     CHKERR(fdInput = open(path, O_RDONLY));
@@ -74,11 +68,11 @@ int proc_2048(char *path)
     pthread_t th_moveAndScore = 0, th_goal = 0;
 
     // Thread Goal
-    arg_goal argGoal = {.gm = gm, .th_main = pthread_self(), .fdDisplay = fdDisplay[1]};
+    arg_goal argGoal = {.gm = &gm, .th_main = pthread_self(), .fdDisplay = fdDisplay[1]};
     pthread_create(&th_goal, NULL, func_goal, &argGoal);
 
     // Thread Move&Score
-    arg_moveAndScore argMoveAndScore = {.gm = gm, .th_goal = th_goal};
+    arg_moveAndScore argMoveAndScore = {.gm = &gm, .th_goal = th_goal};
     pthread_create(&th_moveAndScore, NULL, func_moveAndScore, &argMoveAndScore);
 
     // Thread Main
@@ -96,7 +90,7 @@ int proc_2048(char *path)
     {
         if (m.move == START)
         {
-            games[0]->gameId = m.gameId; // à remplacer par une fonction qui ajoute une nouvelle partie
+            addNewGame(games, m.gameId);
         }
 
         gm = getGame(games, m.gameId);
@@ -133,7 +127,18 @@ int proc_2048(char *path)
     return 0;
 }
 
-void addNewGame() {}
+int addNewGame(game_variable **games, pid_t gameId)
+{
+    games[0] = calloc(1, sizeof(game_variable));
+    games[0]->grid = calloc(GRID_SIZE * GRID_SIZE, sizeof(int));
+
+    games[0]->gameId = gameId;
+
+    addNumberOnGrid(games[0]->grid); // Ajout des deux premières cases
+    addNumberOnGrid(games[0]->grid);
+
+    return 0;
+}
 
 game_variable *getGame(game_variable **games, pid_t gameId)
 {
@@ -150,7 +155,7 @@ game_variable *getGame(game_variable **games, pid_t gameId)
 void *func_moveAndScore(void *arg)
 {
     arg_moveAndScore *args = (arg_moveAndScore *)arg; // Cast des arguments
-    game_variable *gm = args->gm;
+    game_variable *gm = *(args->gm);
     gm->validity = VALID;
 
     // Mise en place de la gestion des signaux
@@ -166,6 +171,7 @@ void *func_moveAndScore(void *arg)
     while (1)
     {
         sigwait(&set, &sig); // Attend un signal
+        gm = *(args->gm);
 
         if (sig == SIGTERM) // Termine la boucle
             break;
@@ -184,7 +190,7 @@ void *func_moveAndScore(void *arg)
 void *func_goal(void *arg)
 {
     arg_goal *args = (arg_goal *)arg; // Cast des arguments
-    game_variable *gm = args->gm;
+    game_variable *gm = *(args->gm);
 
     // Mise en place de la gestion des signaux
     sigset_t set;
@@ -204,6 +210,7 @@ void *func_goal(void *arg)
     while (1)
     {
         sigwait(&set, &sig); // Attend un signal
+        gm = *(args->gm);
 
         if (sig == SIGTERM) // Termine la boucle
             break;
