@@ -16,7 +16,7 @@
 Fonction représentant le processus 2048
 */
 
-int addNewGame(game_variable **games, pid_t gameId);
+int addNewGame(game_variable **games, pid_t gameId, int gcount);
 game_variable *getGame(game_variable **games, pid_t gameId);
 void updateGameStatus(game_variable *gm);
 void addNumberOnGrid(int *grid);
@@ -46,6 +46,8 @@ int proc_2048(char *path)
 
     // Création des variables (pointeurs) pour la partie
     game_variable *games[8];
+    int gcount = 0;
+
     game_variable *gm;
     CHKNULL(gm = calloc(1, sizeof(game_variable)));
     CHKNULL(gm->grid = calloc(GRID_SIZE * GRID_SIZE, sizeof(int)));
@@ -90,7 +92,8 @@ int proc_2048(char *path)
     {
         if (m.move == START)
         {
-            addNewGame(games, m.gameId);
+            if (addNewGame(games, m.gameId, gcount))
+                gcount++;
         }
 
         gm = getGame(games, m.gameId);
@@ -100,8 +103,8 @@ int proc_2048(char *path)
                 break;
 
             gm->move = m.move;
-            // Envoie d'un signal à M&S pour traiter le coup
 
+            // Envoie d'un signal à M&S pour traiter le coup
             pthread_kill(th_moveAndScore, SIG_MOVE);
 
             // Attente de Goal et de display
@@ -127,17 +130,24 @@ int proc_2048(char *path)
     return 0;
 }
 
-int addNewGame(game_variable **games, pid_t gameId)
+int addNewGame(game_variable **games, pid_t gameId, int gcount)
 {
-    games[0] = calloc(1, sizeof(game_variable));
-    games[0]->grid = calloc(GRID_SIZE * GRID_SIZE, sizeof(int));
+    if (gcount < MAX_GAME_NB)
+    {
+        games[gcount] = calloc(1, sizeof(game_variable));
+        games[gcount]->grid = calloc(GRID_SIZE * GRID_SIZE, sizeof(int));
 
-    games[0]->gameId = gameId;
+        games[gcount]->gameId = gameId;
 
-    addNumberOnGrid(games[0]->grid); // Ajout des deux premières cases
-    addNumberOnGrid(games[0]->grid);
+        addNumberOnGrid(games[0]->grid); // Ajout des deux premières cases
+        addNumberOnGrid(games[0]->grid);
 
-    return 0;
+        return 1;
+    }
+    else
+    {
+        return 0;
+    }
 }
 
 game_variable *getGame(game_variable **games, pid_t gameId)

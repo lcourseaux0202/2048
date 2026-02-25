@@ -4,6 +4,7 @@
 #include <pthread.h>
 #include <signal.h>
 
+#define MAX_GAME_NB 64
 #define GRID_SIZE 4
 #define OBJECTIV 2048
 
