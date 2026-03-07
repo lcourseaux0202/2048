@@ -35,7 +35,7 @@ int proc_display(int fdDisplay)
     printf("\n\n            Start of the game!\n");
     while (displaying)
     {
-        printf(CLEAR); // clear le terminal
+        //printf(CLEAR); // clear le terminal
         read(fdDisplay, &gm->gameId, sizeof(int));
         ssize_t nb = read(fdDisplay, gm->grid, 16 * sizeof(int));
 

@@ -25,6 +25,7 @@ enum VALIDITY processLine(int *line, size_t size, int *score);
 
 int proc_2048(char *path)
 {
+    printf("1\n");
     srand(time(NULL));
     // Création du pipe annonyme pour l'affichage
     int fdDisplay[2];
@@ -90,6 +91,8 @@ int proc_2048(char *path)
     message m;
     while (read(fdInput, &m, sizeof(m)) == sizeof(m))
     {
+
+    printf("1.1\n");
         if (m.move == START)
         {
             if (addNewGame(games, m.gameId, gcount))
@@ -132,6 +135,7 @@ int proc_2048(char *path)
 
 int addNewGame(game_variable **games, pid_t gameId, int gcount)
 {
+    printf("2\n");
     if (gcount < MAX_GAME_NB)
     {
         games[gcount] = calloc(1, sizeof(game_variable));
@@ -139,8 +143,8 @@ int addNewGame(game_variable **games, pid_t gameId, int gcount)
 
         games[gcount]->gameId = gameId;
 
-        addNumberOnGrid(games[0]->grid); // Ajout des deux premières cases
-        addNumberOnGrid(games[0]->grid);
+        addNumberOnGrid(games[gcount]->grid); // Ajout des deux premières cases
+        addNumberOnGrid(games[gcount]->grid);
 
         return 1;
     }
@@ -152,6 +156,7 @@ int addNewGame(game_variable **games, pid_t gameId, int gcount)
 
 game_variable *getGame(game_variable **games, pid_t gameId)
 {
+    printf("3\n");
     for (size_t i = 0; i < 8; i++)
     {
         if (games[i] && games[i]->gameId == gameId)
@@ -164,6 +169,7 @@ game_variable *getGame(game_variable **games, pid_t gameId)
 
 void *func_moveAndScore(void *arg)
 {
+    printf("4\n");
     arg_moveAndScore *args = (arg_moveAndScore *)arg; // Cast des arguments
     game_variable *gm = *(args->gm);
     gm->validity = VALID;
@@ -199,6 +205,7 @@ void *func_moveAndScore(void *arg)
 
 void *func_goal(void *arg)
 {
+    printf("5\n");
     arg_goal *args = (arg_goal *)arg; // Cast des arguments
     game_variable *gm = *(args->gm);
 
@@ -247,6 +254,7 @@ void *func_goal(void *arg)
 
 void updateGameStatus(game_variable *gm)
 {
+    printf("6\n");
     bool hasEmptyCell = false;
     bool canMerge = false;
 
@@ -286,6 +294,7 @@ void updateGameStatus(game_variable *gm)
 // Ajoute un nombre placé aléatoirment sur la grille (2 ou 4)
 void addNumberOnGrid(int *grid)
 {
+    printf("7\n");
     // Pour quand la grille est pleine, mais que des mouvs sont encore possibles
     int testGridFull = 1;
     for (size_t i = 0; i < GRID_SIZE * GRID_SIZE; i++)
@@ -315,6 +324,7 @@ void addNumberOnGrid(int *grid)
 // Execute le move de l'utilisateur et retourne de score obtenu par les fusion
 enum VALIDITY executeMove(int *grid, enum MOVE move, size_t size, int *score)
 {
+    printf("8\n");
     enum VALIDITY validity = INVALID;
 
     int *line = malloc(size * sizeof(int));
@@ -374,6 +384,7 @@ enum VALIDITY executeMove(int *grid, enum MOVE move, size_t size, int *score)
 // Fonction pour calculer le mouvement sur une ligne (les GRID_SIZEtuiles sont a,b,c,d)
 enum VALIDITY processLine(int *line, size_t size, int *score)
 {
+    printf("9\n");
     int *temp = calloc(size, sizeof(int));
     int *finalLine = calloc(size, sizeof(int));
 
