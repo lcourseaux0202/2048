@@ -15,6 +15,7 @@ int displaying;
 
 void stop_display(int sigrecu)
 {
+    (void)sigrecu;
     displaying = 0;
 }
 
@@ -24,7 +25,7 @@ int proc_display(int fdDisplay)
 
     struct sigaction sa;
     sigemptyset(&sa.sa_mask);
-    sa.sa_flags = 0;
+    sa.sa_flags   = 0;
     sa.sa_handler = stop_display;
     sigaction(SIGTERM, &sa, NULL);
 
@@ -32,83 +33,69 @@ int proc_display(int fdDisplay)
     CHKNULL(gm = calloc(1, sizeof(game_variable)));
     CHKNULL(gm->grid = calloc(GRID_SIZE * GRID_SIZE, sizeof(int)));
 
-    printf("\n\n            Start of the game!\n");
     while (displaying)
     {
-        //printf(CLEAR); // clear le terminal
-        read(fdDisplay, &gm->gameId, sizeof(int));
+        // ── Lecture depuis le pipe ──────────────────────────────
+        pid_t  gameId;
+        char   tty[64] = {0};
+
+        if (read(fdDisplay, &gameId, sizeof(pid_t)) != sizeof(pid_t)) break;
+        if (read(fdDisplay, tty,     64)             != 64)            break;
+
         ssize_t nb = read(fdDisplay, gm->grid, 16 * sizeof(int));
+        if (nb <= 0) break;
 
-        if (nb <= 0)
-            break;
-
-        read(fdDisplay, &gm->score, sizeof(int));
+        read(fdDisplay, &gm->score,  sizeof(int));
         read(fdDisplay, &gm->status, sizeof(int));
 
-        printf("\n\nScore : %d          Game ID : %d\n", gm->score, gm->gameId);
-        printf("|======||======||======||======|\n");
+        // ── Ouvrir le terminal de cette instance ────────────────
+        // Chaque partie a son propre tty (/dev/pts/N)
+        FILE *out = fopen(tty, "w");
+        if (!out)
+            out = stdout; // fallback si le tty est inaccessible
+
+        // ── Affichage ───────────────────────────────────────────
+        fprintf(out, CLEAR); // Efface le terminal de cette instance
+        fprintf(out, "\n\nScore : %d          Game ID : %d\n", gm->score, gameId);
+        fprintf(out, "|======||======||======||======|\n");
+
         for (size_t i = 0; i < GRID_SIZE; i++)
         {
             for (size_t j = 0; j < GRID_SIZE; j++)
             {
                 int num = gm->grid[i * GRID_SIZE + j];
-
                 switch (num)
                 {
-                case 2:
-                    printf("|   " GREEN "%d" DEFAULT "  |", num);
-                    break;
-                case 4:
-                    printf("|   " YELLOW "%d" DEFAULT "  |", num);
-                    break;
-                case 8:
-                    printf("|   " BLUE "%d" DEFAULT "  |", num);
-                    break;
-                case 16:
-                    printf("|  " PURPLE "%d" DEFAULT "  |", num);
-                    break;
-                case 32:
-                    printf("|  " CYAN "%d" DEFAULT "  |", num);
-                    break;
-                case 64:
-                    printf("|  " WHITE "%d" DEFAULT "  |", num);
-                    break;
-                case 128:
-                    printf("|  " RED "%d" DEFAULT " |", num);
-                    break;
-                case 256:
-                    printf("|  " GREEN "%d" DEFAULT " |", num);
-                    break;
-                case 512:
-                    printf("|  " YELLOW "%d" DEFAULT " |", num);
-                    break;
-                case 1024:
-                    printf("| " BLUE "%d" DEFAULT " |", num);
-                    break;
-                case 2048:
-                    printf("| " PURPLE "%d" DEFAULT " |", num);
-                    break;
-                default:
-                    printf("|      |");
+                    case 2:    fprintf(out, "|   " GREEN  "%d" DEFAULT "  |", num); break;
+                    case 4:    fprintf(out, "|   " YELLOW "%d" DEFAULT "  |", num); break;
+                    case 8:    fprintf(out, "|   " BLUE   "%d" DEFAULT "  |", num); break;
+                    case 16:   fprintf(out, "|  " PURPLE  "%d" DEFAULT "  |", num); break;
+                    case 32:   fprintf(out, "|  " CYAN    "%d" DEFAULT "  |", num); break;
+                    case 64:   fprintf(out, "|  " WHITE   "%d" DEFAULT "  |", num); break;
+                    case 128:  fprintf(out, "|  " RED     "%d" DEFAULT " |", num);  break;
+                    case 256:  fprintf(out, "|  " GREEN   "%d" DEFAULT " |", num);  break;
+                    case 512:  fprintf(out, "|  " YELLOW  "%d" DEFAULT " |", num);  break;
+                    case 1024: fprintf(out, "| " BLUE     "%d" DEFAULT " |", num);  break;
+                    case 2048: fprintf(out, "| " PURPLE   "%d" DEFAULT " |", num);  break;
+                    default:   fprintf(out, "|      |"); break;
                 }
             }
-            printf("\n|======||======||======||======|\n");
+            fprintf(out, "\n|======||======||======||======|\n");
         }
 
-        if (gm->status == LOSE)
-        {
-            printf("You lose!\n");
-        }
+        if (gm->status == LOSE) fprintf(out, "You lose!\n");
+        if (gm->status == WIN)  fprintf(out, "You win!\n");
 
-        if (gm->status == WIN)
-        {
-            printf("You win!\n");
-        }
+        fflush(out);
 
-        fflush(stdout);
+        if (out != stdout)
+            fclose(out); // Fermer le tty après chaque frame
 
+        // Signal au thread principal que l'affichage est terminé
         kill(getppid(), SIG_MAIN);
     }
 
+    free(gm->grid);
+    free(gm);
     return 0;
 }

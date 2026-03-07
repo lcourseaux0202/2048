@@ -7,53 +7,50 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <fcntl.h>
+#include <string.h>
 #include <sys/wait.h>
 #include <signal.h>
 #include <pthread.h>
 #include <stdbool.h>
 
-/*
-Fonction représentant le processus 2048
-*/
-
-int addNewGame(game_variable **games, pid_t gameId, int gcount);
+/* ── Prototypes internes ─────────────────────────────────────── */
+int            addNewGame(game_variable **games, pid_t gameId, int gcount, char *tty);
 game_variable *getGame(game_variable **games, pid_t gameId);
-void updateGameStatus(game_variable *gm);
-void addNumberOnGrid(int *grid);
-enum VALIDITY executeMove(int *grid, enum MOVE move, size_t size, int *score);
-enum VALIDITY processLine(int *line, size_t size, int *score);
+void           updateGameStatus(game_variable *gm);
+void           addNumberOnGrid(int *grid);
+enum VALIDITY  executeMove(int *grid, enum MOVE move, size_t size, int *score);
+enum VALIDITY  processLine(int *line, size_t size, int *score);
 
+/* ══════════════════════════════════════════════════════════════
+ * proc_2048
+ * ══════════════════════════════════════════════════════════════ */
 int proc_2048(char *path)
 {
-    printf("1\n");
     srand(time(NULL));
-    // Création du pipe annonyme pour l'affichage
+
+    // Pipe anonyme vers proc_display
     int fdDisplay[2];
     CHKERR(pipe(fdDisplay));
 
     pid_t pidDisplay = fork();
 
-    if (pidDisplay == 0) // Processus fils
+    if (pidDisplay == 0) // Fils : affichage
     {
-        close(fdDisplay[1]); // Fermeture du pipe d'écriture
-
-        // Lancement de la fonction d'affichage
+        close(fdDisplay[1]);
         proc_display(fdDisplay[0]);
-        close(fdDisplay[0]); // Fermeture du pipe de lecture
+        close(fdDisplay[0]);
         return 0;
     }
-    // Processus père
-    close(fdDisplay[0]); // Fermeture du pipe de lecture
 
-    // Création des variables (pointeurs) pour la partie
-    game_variable *games[8];
+    // Père : logique du jeu
+    close(fdDisplay[0]);
+
+    // Tableau des parties en cours
+    game_variable *games[MAX_GAME_NB];
+    memset(games, 0, sizeof(games));
     int gcount = 0;
 
-    game_variable *gm;
-    CHKNULL(gm = calloc(1, sizeof(game_variable)));
-    CHKNULL(gm->grid = calloc(GRID_SIZE * GRID_SIZE, sizeof(int)));
-
-    // Ouverture pipe nommé
+    // Ouverture du pipe nommé
     int fdInput;
     CHKERR(fdInput = open(path, O_RDONLY));
 
@@ -64,199 +61,189 @@ int proc_2048(char *path)
     sigaddset(&set, SIG_GOAL);
     sigaddset(&set, SIGTERM);
     sigaddset(&set, SIG_MAIN);
-
     pthread_sigmask(SIG_BLOCK, &set, NULL);
 
-    // Création des threads
-    pthread_t th_moveAndScore = 0, th_goal = 0;
-
     // Thread Goal
+    game_variable *gm = NULL;
     arg_goal argGoal = {.gm = &gm, .th_main = pthread_self(), .fdDisplay = fdDisplay[1]};
+    pthread_t th_goal = 0;
     pthread_create(&th_goal, NULL, func_goal, &argGoal);
 
     // Thread Move&Score
     arg_moveAndScore argMoveAndScore = {.gm = &gm, .th_goal = th_goal};
+    pthread_t th_moveAndScore = 0;
     pthread_create(&th_moveAndScore, NULL, func_moveAndScore, &argMoveAndScore);
 
-    // Thread Main
-
-    // Mise en place de la gestion des signaux
+    // Signaux attendus par le thread principal
     int sig;
-
     sigemptyset(&set);
-    sigaddset(&set, SIG_MAIN); // Affichage terminer
-
+    sigaddset(&set, SIG_MAIN);
     pthread_sigmask(SIG_BLOCK, &set, NULL);
 
+    // ── Boucle principale ──
     message m;
     while (read(fdInput, &m, sizeof(m)) == sizeof(m))
     {
-
-    printf("1.1\n");
         if (m.move == START)
         {
-            if (addNewGame(games, m.gameId, gcount))
+            // addNewGame reçoit maintenant le tty de l'instance
+            if (addNewGame(games, m.gameId, gcount, m.tty))
                 gcount++;
         }
 
         gm = getGame(games, m.gameId);
-        if (gm != NULL)
+        if (gm == NULL)
+            continue;
+
+        if (m.move == QUIT || gm->status != PROGRESS)
+            break;
+
+        gm->move = m.move;
+
+        // Signal à Move&Score
+        pthread_kill(th_moveAndScore, SIG_MOVE);
+
+        // Attente de Goal puis de Display
+        sigwait(&set, &sig);
+        sigwait(&set, &sig);
+    }
+
+    // Arrêt propre
+    pthread_kill(th_moveAndScore, SIGTERM);
+    pthread_kill(th_goal, SIGTERM);
+    kill(getppid(), SIGTERM);
+    kill(pidDisplay, SIGTERM);
+
+    pthread_join(th_moveAndScore, NULL);
+    pthread_join(th_goal, NULL);
+
+    // Libération des parties
+    for (int i = 0; i < gcount; i++)
+    {
+        if (games[i])
         {
-            if (m.move == QUIT || gm->status != PROGRESS)
-                break;
-
-            gm->move = m.move;
-
-            // Envoie d'un signal à M&S pour traiter le coup
-            pthread_kill(th_moveAndScore, SIG_MOVE);
-
-            // Attente de Goal et de display
-            sigwait(&set, &sig); // Attend un signal
-            sigwait(&set, &sig); // Attend un signal
+            free(games[i]->grid);
+            free(games[i]);
         }
     }
 
-    // Arrêt des proc et threads
-    pthread_kill(th_moveAndScore, SIGTERM);
-    pthread_kill(th_goal, SIGTERM);
-    kill(getppid(), SIGTERM);  // Envoie du SIGTERM au père (processus input)
-    kill(pidDisplay, SIGTERM); // Envoie du SIGTERM au processus display
-
-    // Libération
-    pthread_join(th_moveAndScore, NULL);
-    pthread_join(th_goal, NULL);
-    free(gm->grid);
-    free(gm);
-    close(fdInput);      // Fermeture du pipe nommé
-    close(fdDisplay[1]); // Fermeture du pipe d'écriture
-    wait(NULL);          // Attente du fils (Display)
+    close(fdInput);
+    close(fdDisplay[1]);
+    wait(NULL);
     return 0;
 }
 
-int addNewGame(game_variable **games, pid_t gameId, int gcount)
+/* ── addNewGame : crée une nouvelle partie et stocke le tty ──── */
+int addNewGame(game_variable **games, pid_t gameId, int gcount, char *tty)
 {
-    printf("2\n");
-    if (gcount < MAX_GAME_NB)
-    {
-        games[gcount] = calloc(1, sizeof(game_variable));
-        games[gcount]->grid = calloc(GRID_SIZE * GRID_SIZE, sizeof(int));
-
-        games[gcount]->gameId = gameId;
-
-        addNumberOnGrid(games[gcount]->grid); // Ajout des deux premières cases
-        addNumberOnGrid(games[gcount]->grid);
-
-        return 1;
-    }
-    else
-    {
+    if (gcount >= MAX_GAME_NB)
         return 0;
-    }
+
+    games[gcount] = calloc(1, sizeof(game_variable));
+    if (!games[gcount]) return 0;
+
+    games[gcount]->grid = calloc(GRID_SIZE * GRID_SIZE, sizeof(int));
+    if (!games[gcount]->grid) { free(games[gcount]); return 0; }
+
+    games[gcount]->gameId = gameId;
+    strncpy(games[gcount]->tty, tty, sizeof(games[gcount]->tty) - 1);
+
+    addNumberOnGrid(games[gcount]->grid);
+    addNumberOnGrid(games[gcount]->grid);
+
+    return 1;
 }
 
+/* ── getGame ─────────────────────────────────────────────────── */
 game_variable *getGame(game_variable **games, pid_t gameId)
 {
-    printf("3\n");
-    for (size_t i = 0; i < 8; i++)
+    for (size_t i = 0; i < MAX_GAME_NB; i++)
     {
         if (games[i] && games[i]->gameId == gameId)
-        {
             return games[i];
-        }
     }
     return NULL;
 }
 
+/* ── func_moveAndScore ───────────────────────────────────────── */
 void *func_moveAndScore(void *arg)
 {
-    printf("4\n");
-    arg_moveAndScore *args = (arg_moveAndScore *)arg; // Cast des arguments
-    game_variable *gm = *(args->gm);
-    gm->validity = VALID;
+    arg_moveAndScore *args = (arg_moveAndScore *)arg;
+    game_variable    *gm   = *(args->gm);
 
-    // Mise en place de la gestion des signaux
     sigset_t set;
-    int sig;
-
+    int      sig;
     sigemptyset(&set);
-    sigaddset(&set, SIG_MOVE); // Nouveau move
-    sigaddset(&set, SIGTERM);  // Arrêt
-
+    sigaddset(&set, SIG_MOVE);
+    sigaddset(&set, SIGTERM);
     pthread_sigmask(SIG_BLOCK, &set, NULL);
 
     while (1)
     {
-        sigwait(&set, &sig); // Attend un signal
+        sigwait(&set, &sig);
         gm = *(args->gm);
 
-        if (sig == SIGTERM) // Termine la boucle
+        if (sig == SIGTERM)
             break;
 
-        if (sig == SIG_MOVE) // Gère le move
+        if (sig == SIG_MOVE)
         {
             gm->validity = executeMove(gm->grid, gm->move, GRID_SIZE, &gm->score);
-            // printf("Temp Score : %d\n", gm->score);
-            pthread_kill(args->th_goal, SIG_GOAL); // Passe la main à Goal
+            pthread_kill(args->th_goal, SIG_GOAL);
         }
     }
-
     return NULL;
 }
 
+/* ── func_goal ───────────────────────────────────────────────── */
 void *func_goal(void *arg)
 {
-    printf("5\n");
-    arg_goal *args = (arg_goal *)arg; // Cast des arguments
-    game_variable *gm = *(args->gm);
+    arg_goal      *args = (arg_goal *)arg;
+    game_variable *gm   = *(args->gm);
 
-    // Mise en place de la gestion des signaux
     sigset_t set;
-    int sig;
-
+    int      sig;
     sigemptyset(&set);
-    sigaddset(&set, SIG_GOAL); // Vérification de victoire
-    sigaddset(&set, SIGTERM);  // Arrêt
-
+    sigaddset(&set, SIG_GOAL);
+    sigaddset(&set, SIGTERM);
     pthread_sigmask(SIG_BLOCK, &set, NULL);
 
-    write(args->fdDisplay, &gm->gameId, sizeof(pid_t));
-    write(args->fdDisplay, gm->grid, 16 * sizeof(int));
-    write(args->fdDisplay, &gm->score, sizeof(int));
-    write(args->fdDisplay, &gm->status, sizeof(int));
+    // Envoi initial (grille vide au démarrage)
+    // gm peut être NULL ici si aucune partie n'a encore démarré — on attend le premier SIG_GOAL
 
     while (1)
     {
-        sigwait(&set, &sig); // Attend un signal
+        sigwait(&set, &sig);
         gm = *(args->gm);
 
-        if (sig == SIGTERM) // Termine la boucle
+        if (sig == SIGTERM)
             break;
 
-        if (sig == SIG_GOAL) // Gère la condition de vitoire
+        if (sig == SIG_GOAL)
         {
             updateGameStatus(gm);
 
             if (gm->status == PROGRESS && gm->validity == VALID)
-            {
-                addNumberOnGrid(gm->grid); // Ajout de la prochaine case
-            }
+                addNumberOnGrid(gm->grid);
 
-            write(args->fdDisplay, &gm->gameId, sizeof(pid_t));
-            write(args->fdDisplay, gm->grid, 16 * sizeof(int));
-            write(args->fdDisplay, &gm->score, sizeof(int));
-            write(args->fdDisplay, &gm->status, sizeof(int));
-            pthread_kill(args->th_main, SIG_MAIN); // Passe la main à Main
+            // Envoi au proc_display : gameId + tty + grille + score + status
+            write(args->fdDisplay, &gm->gameId,  sizeof(pid_t));
+            write(args->fdDisplay,  gm->tty,      64);
+            write(args->fdDisplay,  gm->grid,     16 * sizeof(int));
+            write(args->fdDisplay, &gm->score,    sizeof(int));
+            write(args->fdDisplay, &gm->status,   sizeof(int));
+
+            pthread_kill(args->th_main, SIG_MAIN);
         }
     }
-
     return NULL;
 }
 
+/* ── updateGameStatus ────────────────────────────────────────── */
 void updateGameStatus(game_variable *gm)
 {
-    printf("6\n");
     bool hasEmptyCell = false;
-    bool canMerge = false;
+    bool canMerge     = false;
 
     for (size_t i = 0; i < GRID_SIZE * GRID_SIZE; i++)
     {
@@ -267,87 +254,57 @@ void updateGameStatus(game_variable *gm)
             gm->status = WIN;
             return;
         }
-
         if (cell == 0)
-        {
             hasEmptyCell = true;
-        }
 
-        // Vérifications si fusion possible
         size_t col = i % GRID_SIZE;
         size_t row = i / GRID_SIZE;
 
         if (col + 1 < GRID_SIZE && cell == gm->grid[i + 1])
-        {
             canMerge = true;
-        }
-
         if (row + 1 < GRID_SIZE && cell == gm->grid[i + GRID_SIZE])
-        {
             canMerge = true;
-        }
     }
 
     gm->status = (hasEmptyCell || canMerge) ? PROGRESS : LOSE;
 }
 
-// Ajoute un nombre placé aléatoirment sur la grille (2 ou 4)
+/* ── addNumberOnGrid ─────────────────────────────────────────── */
 void addNumberOnGrid(int *grid)
 {
-    printf("7\n");
-    // Pour quand la grille est pleine, mais que des mouvs sont encore possibles
-    int testGridFull = 1;
+    // Vérifier si la grille est pleine
     for (size_t i = 0; i < GRID_SIZE * GRID_SIZE; i++)
-    {
-        if (grid[i] == 0)
-        {
-            testGridFull = 0;
-            break;
-        }
-    }
-    if (testGridFull == 1)
-    {
-        return;
-    }
+        if (grid[i] == 0) goto not_full;
+    return;
 
-    // Choix de l'emplacement
+not_full:;
     int loc;
-    do
-    {
+    do {
         loc = rand() % (GRID_SIZE * GRID_SIZE);
-    } while (*(grid + loc) != 0);
+    } while (grid[loc] != 0);
 
-    // Choix et placement de la valeur
-    *(grid + loc) = rand() % 100 < 90 ? 2 : 4;
+    grid[loc] = (rand() % 100 < 90) ? 2 : 4;
 }
 
-// Execute le move de l'utilisateur et retourne de score obtenu par les fusion
+/* ── executeMove ─────────────────────────────────────────────── */
 enum VALIDITY executeMove(int *grid, enum MOVE move, size_t size, int *score)
 {
-    printf("8\n");
     enum VALIDITY validity = INVALID;
 
     int *line = malloc(size * sizeof(int));
-    if (!line)
-        return validity;
+    if (!line) return validity;
 
     for (size_t i = 0; i < size; i++)
     {
         if (move == LEFT || move == RIGHT)
         {
-            // Extraction de la ligne
             for (size_t j = 0; j < size; j++)
             {
                 size_t col = (move == LEFT) ? j : (size - 1 - j);
                 line[j] = grid[i * size + col];
             }
-
             if (processLine(line, size, score) == VALID)
-            {
                 validity = VALID;
-            }
-
-            // Réécriture dans la grille
             for (size_t j = 0; j < size; j++)
             {
                 size_t col = (move == LEFT) ? j : (size - 1 - j);
@@ -356,19 +313,13 @@ enum VALIDITY executeMove(int *grid, enum MOVE move, size_t size, int *score)
         }
         else if (move == UP || move == DOWN)
         {
-            // Extraction de la colonne
             for (size_t j = 0; j < size; j++)
             {
                 size_t row = (move == UP) ? j : (size - 1 - j);
                 line[j] = grid[row * size + i];
             }
-
             if (processLine(line, size, score) == VALID)
-            {
                 validity = VALID;
-            }
-
-            // Réécriture dans la grille
             for (size_t j = 0; j < size; j++)
             {
                 size_t row = (move == UP) ? j : (size - 1 - j);
@@ -381,13 +332,11 @@ enum VALIDITY executeMove(int *grid, enum MOVE move, size_t size, int *score)
     return validity;
 }
 
-// Fonction pour calculer le mouvement sur une ligne (les GRID_SIZEtuiles sont a,b,c,d)
+/* ── processLine ─────────────────────────────────────────────── */
 enum VALIDITY processLine(int *line, size_t size, int *score)
 {
-    printf("9\n");
-    int *temp = calloc(size, sizeof(int));
+    int *temp      = calloc(size, sizeof(int));
     int *finalLine = calloc(size, sizeof(int));
-
     enum VALIDITY validity = INVALID;
 
     if (!temp || !finalLine)
@@ -397,41 +346,38 @@ enum VALIDITY processLine(int *line, size_t size, int *score)
         return validity;
     }
 
+    // Compacter
     int pos = 0;
     for (size_t i = 0; i < size; i++)
-    {
         if (line[i] != 0)
             temp[pos++] = line[i];
-    }
 
+    // Fusionner
     for (size_t i = 0; i + 1 < size; i++)
     {
         if (temp[i] != 0 && temp[i] == temp[i + 1])
         {
-            temp[i] *= 2;
-            temp[i + 1] = 0;
-            *score += temp[i]; // On ajoute au score la valeur de la tuiles crée
+            temp[i]   *= 2;
+            *score    += temp[i];
+            temp[i+1]  = 0;
         }
     }
 
+    // Compacter après fusion
     pos = 0;
     for (size_t i = 0; i < size; i++)
-    {
         if (temp[i] != 0)
             finalLine[pos++] = temp[i];
-    }
 
+    // Détecter changement
     for (size_t i = 0; i < size; i++)
     {
         if (line[i] != finalLine[i])
-        {
             validity = VALID;
-        }
         line[i] = finalLine[i];
     }
 
     free(temp);
     free(finalLine);
-
     return validity;
 }
