@@ -1,6 +1,6 @@
-#include "macro.h"
-#include "display.h"
-#include "signals.h"
+#include "../include/macro.h"
+#include "../include/display.h"
+#include "../include/signals.h"
 
 #include <unistd.h>
 #include <stdlib.h>
@@ -35,12 +35,8 @@ int proc_display(int fdDisplay)
 
     while (displaying)
     {
-        // ── Lecture depuis le pipe ──────────────────────────────
-        pid_t  gameId;
-        char   tty[64] = {0};
-
-        if (read(fdDisplay, &gameId, sizeof(pid_t)) != sizeof(pid_t)) break;
-        if (read(fdDisplay, tty,     64)             != 64)            break;
+        if (read(fdDisplay, &gm->gameId, sizeof(pid_t)) != sizeof(pid_t)) break;
+        if (read(fdDisplay, gm->tty,64) != 64) break;
 
         ssize_t nb = read(fdDisplay, gm->grid, 16 * sizeof(int));
         if (nb <= 0) break;
@@ -48,15 +44,13 @@ int proc_display(int fdDisplay)
         read(fdDisplay, &gm->score,  sizeof(int));
         read(fdDisplay, &gm->status, sizeof(int));
 
-        // ── Ouvrir le terminal de cette instance ────────────────
         // Chaque partie a son propre tty (/dev/pts/N)
-        FILE *out = fopen(tty, "w");
+        FILE *out = fopen(gm->tty, "w");
         if (!out)
             out = stdout; // fallback si le tty est inaccessible
 
-        // ── Affichage ───────────────────────────────────────────
         fprintf(out, CLEAR); // Efface le terminal de cette instance
-        fprintf(out, "\n\nScore : %d          Game ID : %d\n", gm->score, gameId);
+        fprintf(out, "\n\nScore : %d          Game ID : %d\n", gm->score, gm->gameId);
         fprintf(out, "|======||======||======||======|\n");
 
         for (size_t i = 0; i < GRID_SIZE; i++)
@@ -66,32 +60,62 @@ int proc_display(int fdDisplay)
                 int num = gm->grid[i * GRID_SIZE + j];
                 switch (num)
                 {
-                    case 2:    fprintf(out, "|   " GREEN  "%d" DEFAULT "  |", num); break;
-                    case 4:    fprintf(out, "|   " YELLOW "%d" DEFAULT "  |", num); break;
-                    case 8:    fprintf(out, "|   " BLUE   "%d" DEFAULT "  |", num); break;
-                    case 16:   fprintf(out, "|  " PURPLE  "%d" DEFAULT "  |", num); break;
-                    case 32:   fprintf(out, "|  " CYAN    "%d" DEFAULT "  |", num); break;
-                    case 64:   fprintf(out, "|  " WHITE   "%d" DEFAULT "  |", num); break;
-                    case 128:  fprintf(out, "|  " RED     "%d" DEFAULT " |", num);  break;
-                    case 256:  fprintf(out, "|  " GREEN   "%d" DEFAULT " |", num);  break;
-                    case 512:  fprintf(out, "|  " YELLOW  "%d" DEFAULT " |", num);  break;
-                    case 1024: fprintf(out, "| " BLUE     "%d" DEFAULT " |", num);  break;
-                    case 2048: fprintf(out, "| " PURPLE   "%d" DEFAULT " |", num);  break;
-                    default:   fprintf(out, "|      |"); break;
+                    case 2:
+                        fprintf(out, "|   " GREEN  "%d" DEFAULT "  |", num);
+                        break;
+                    case 4:
+                        fprintf(out, "|   " YELLOW "%d" DEFAULT "  |", num);
+                        break;
+                    case 8:
+                        fprintf(out, "|   " BLUE   "%d" DEFAULT "  |", num);
+                        break;
+                    case 16:
+                        fprintf(out, "|  " PURPLE  "%d" DEFAULT "  |", num);
+                        break;
+                    case 32:
+                       fprintf(out, "|  " CYAN    "%d" DEFAULT "  |", num);
+                       break;
+                    case 64:
+                       fprintf(out, "|  " WHITE   "%d" DEFAULT "  |", num);
+                       break;
+                    case 128:
+                       fprintf(out, "|  " RED     "%d" DEFAULT " |", num);
+                       break;
+                    case 256:
+                       fprintf(out, "|  " GREEN   "%d" DEFAULT " |", num);
+                       break;
+                    case 512:
+                       fprintf(out, "|  " YELLOW  "%d" DEFAULT " |", num);
+                       break;
+                    case 1024:
+                       fprintf(out, "| " BLUE     "%d" DEFAULT " |", num);
+                       break;
+                    case 2048:
+                       fprintf(out, "| " PURPLE   "%d" DEFAULT " |", num);
+                       break;
+                    default:
+                       fprintf(out, "|      |");
+                       break;
                 }
             }
             fprintf(out, "\n|======||======||======||======|\n");
         }
 
-        if (gm->status == LOSE) fprintf(out, "You lose!\n");
-        if (gm->status == WIN)  fprintf(out, "You win!\n");
+        if (gm->status == LOSE)
+        {
+            fprintf(out, "You lose!\n");
+        }
+
+        if (gm->status == WIN)
+        {
+            fprintf(out, "You win!\n");
+        }
 
         fflush(out);
 
         if (out != stdout)
-            fclose(out); // Fermer le tty après chaque frame
+            fclose(out); // Fermer le tty après chaque affichage
 
-        // Signal au thread principal que l'affichage est terminé
         kill(getppid(), SIG_MAIN);
     }
 

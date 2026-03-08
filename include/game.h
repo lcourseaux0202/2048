@@ -35,7 +35,7 @@ typedef struct message
 {
     pid_t    gameId;
     enum MOVE move;
-    char     tty[64]; // Terminal de l'instance expéditrice
+    char     tty[64]; // Terminal associé à la partie
 } message;
 
 typedef struct game_variable
@@ -46,7 +46,7 @@ typedef struct game_variable
     char           move;
     enum VALIDITY  validity;
     enum GAMESTATUS status;
-    char           tty[64]; // Terminal associé à cette partie
+    char           tty[64]; // Terminal associé à la partie
 } game_variable;
 
 typedef struct arg_moveAndScore
