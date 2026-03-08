@@ -95,8 +95,13 @@ int proc_2048(char *path)
         if (gm == NULL)
             continue;
 
-        if (m.move == QUIT || gm->status != PROGRESS)
+        if (m.move == QUIT || gm->status != PROGRESS) {
+            // Envoie d'un signal pour la fin vers le main qui à fini
+            kill(m.gameId, SIGTERM);
+            // Fin de la boucle seuelment si le nombre de partie est à 0.
+            if (gcount > 0) continue;
             break;
+        } 
 
         gm->move = m.move;
 
@@ -111,7 +116,6 @@ int proc_2048(char *path)
     // Arrêt propre
     pthread_kill(th_moveAndScore, SIGTERM);
     pthread_kill(th_goal, SIGTERM);
-    kill(getppid(), SIGTERM);
     kill(pidDisplay, SIGTERM);
 
     pthread_join(th_moveAndScore, NULL);
