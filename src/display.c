@@ -31,7 +31,6 @@ int proc_display(int fdDisplay)
 
     game_variable *gm;
     CHKNULL(gm = calloc(1, sizeof(game_variable)));
-    CHKNULL(gm->grid = calloc(GRID_SIZE * GRID_SIZE, sizeof(int)));
 
     while (displaying)
     {
@@ -119,7 +118,6 @@ int proc_display(int fdDisplay)
         kill(getppid(), SIG_MAIN);
     }
 
-    free(gm->grid);
     free(gm);
     return 0;
 }

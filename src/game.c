@@ -47,17 +47,26 @@ int proc_2048(char *path)
     close(fdDisplay[0]); // Fermeture du pipe de lecture
 
     // Création des variables (pointeurs) pour la partie
-    game_variable *games[MAX_GAME_NB];
+    game_variable *games[MAX_GAME_NB] = {0};
     int gcount = 0;
 
     game_variable *gm;
-    CHKNULL(gm = calloc(1, sizeof(game_variable)));
-    CHKNULL(gm->grid = calloc(GRID_SIZE * GRID_SIZE, sizeof(int)));
 
     // Création du segment de mémoire partagé
     key_t key = ftok(SEGMENT_PATH, PROJECT_ID); // Clé
-    int shmid = shmget(key, 1024, IPC_CREAT | SHM_R | SHM_W); // Création du segment
-    char * data = shmat(shmid, (void *)0, 0); // Attachement au segment
+    int shmid = shmget(key, sizeof(game_variable), IPC_CREAT | IPC_EXCL | 0664); // Création du segment
+    game_variable * sharredGame = shmat(shmid, (void *)0, 0); // Attachement au segment
+
+    // Création du mutex 
+    pthread_mutex_t mut = PTHREAD_MUTEX_INITIALIZER;
+
+    // Création des sémaphores
+    sem_t sem_move;
+    sem_t sem_goal;
+    sem_t sem_main;
+    sem_init(&sem_move, 0, 0);
+    sem_init(&sem_goal, 0, 0);
+    sem_init(&sem_main, 0, 0);
 
     // Ouverture du pipe nommé
     int fdInput;
@@ -77,11 +86,11 @@ int proc_2048(char *path)
     pthread_t th_moveAndScore = 0, th_goal = 0;
 
     // Thread Goal
-    arg_goal argGoal = {.gm = &gm, .th_main = pthread_self(), .fdDisplay = fdDisplay[1]};
+    arg_goal argGoal = {.gm = sharredGame, .th_main = pthread_self(), .fdDisplay = fdDisplay[1], .mut = &mut, .sem_goal = &sem_goal, .sem_main = &sem_main};
     pthread_create(&th_goal, NULL, func_goal, &argGoal);
 
     // Thread Move&Score
-    arg_moveAndScore argMoveAndScore = {.gm = &gm, .th_goal = th_goal};
+    arg_moveAndScore argMoveAndScore = {.gm = sharredGame, .th_goal = th_goal, .mut = &mut, .sem_move = &sem_move, .sem_goal = &sem_goal};
     pthread_create(&th_moveAndScore, NULL, func_moveAndScore, &argMoveAndScore);
 
     // Thread Main
@@ -97,6 +106,7 @@ int proc_2048(char *path)
     message m;
     while (read(fdInput, &m, sizeof(m)) == sizeof(m))
     {
+        // Création d'une partie si nécessaire
         if (m.move == START)
         {
             if (addNewGame(games, m.gameId, gcount, m.tty))
@@ -117,12 +127,24 @@ int proc_2048(char *path)
 
             gm->move = m.move;
 
+            // Copie de la partie dans shm
+            pthread_mutex_lock(&mut);
+            memcpy(sharredGame, gm, sizeof(game_variable));
+            pthread_mutex_unlock(&mut);
+            sem_post(&sem_move);
+
             // Envoie d'un signal à M&S pour traiter le coup
             pthread_kill(th_moveAndScore, SIG_MOVE);
 
             // Attente de Goal et de display
             sigwait(&set, &sig); // Attend un signal
             sigwait(&set, &sig); // Attend un signal
+
+            // Recopie de la partie du shm
+            sem_wait(&sem_main);
+            pthread_mutex_lock(&mut);
+            memcpy(gm, sharredGame, sizeof(game_variable));
+            pthread_mutex_unlock(&mut);
         }
 
     }
@@ -138,19 +160,23 @@ int proc_2048(char *path)
     // Libération des parties
     for (int i = 0; i < gcount; i++)
     {
-        if (games[i])
-        {
-            free(games[i]->grid);
-            free(games[i]);
-        }
+        if (games[i]) free(games[i]);
     }
 
     // Fermeture du segment de mémoire partagé
-    shmdt(data);
+    shmdt(sharredGame);
     shmctl(shmid, IPC_RMID, NULL);
 
+    // Suppression du mutex
+    pthread_mutex_destroy(&mut);
+
+    // Suppression des sémapores
+    sem_destroy(&sem_move);
+    sem_destroy(&sem_goal);
+    sem_destroy(&sem_main);
+
     close(fdInput);      // Fermeture du pipe nommé
-    unlink(path); // Suppression du pipe
+    unlink(path);        // Suppression du pipe
     close(fdDisplay[1]); // Fermeture du pipe d'écriture
     wait(NULL);          // Attente du fils (Display)
     return 0;
@@ -162,9 +188,10 @@ int addNewGame(game_variable **games, pid_t gameId, int gcount, char *tty)
     if (gcount < MAX_GAME_NB)
     {
         games[gcount] = calloc(1, sizeof(game_variable));
-        games[gcount]->grid = calloc(GRID_SIZE * GRID_SIZE, sizeof(int));
 
         games[gcount]->gameId = gameId;
+        games[gcount]->score = 0;
+        games[gcount]->status = PROGRESS;
 
         strncpy(games[gcount]->tty, tty, sizeof(games[gcount]->tty) - 1);
 
@@ -181,7 +208,7 @@ int addNewGame(game_variable **games, pid_t gameId, int gcount, char *tty)
 
 game_variable *getGame(game_variable **games, pid_t gameId)
 {
-    for (size_t i = 0; i < 8; i++)
+    for (size_t i = 0; i < MAX_GAME_NB; i++)
     {
         if (games[i] && games[i]->gameId == gameId)
         {
@@ -194,7 +221,10 @@ game_variable *getGame(game_variable **games, pid_t gameId)
 void *func_moveAndScore(void *arg)
 {
     arg_moveAndScore *args = (arg_moveAndScore *)arg; // Cast des arguments
-    game_variable *gm = *(args->gm);
+    sem_t * sem_move = args->sem_move;
+    sem_t * sem_goal = args->sem_goal;
+    pthread_mutex_t * mut = args->mut;
+    game_variable *gm = args->gm;
     gm->validity = VALID;
 
     // Mise en place de la gestion des signaux
@@ -210,15 +240,19 @@ void *func_moveAndScore(void *arg)
     while (1)
     {
         sigwait(&set, &sig); // Attend un signal
-        gm = *(args->gm);
+        
+
 
         if (sig == SIGTERM) // Termine la boucle
             break;
 
         if (sig == SIG_MOVE) // Gère le move
         {
+            sem_wait(sem_move);
+            pthread_mutex_lock(mut);
             gm->validity = executeMove(gm->grid, gm->move, GRID_SIZE, &gm->score);
-            // printf("Temp Score : %d\n", gm->score);
+            pthread_mutex_unlock(mut);
+            sem_post(sem_goal);
             pthread_kill(args->th_goal, SIG_GOAL); // Passe la main à Goal
         }
     }
@@ -229,8 +263,10 @@ void *func_moveAndScore(void *arg)
 void *func_goal(void *arg)
 {
     arg_goal *args = (arg_goal *)arg; // Cast des arguments
-    game_variable *gm = *(args->gm);
-
+    game_variable *gm = args->gm;
+    sem_t * sem_goal = args->sem_goal;
+    sem_t * sem_main = args->sem_main;
+    pthread_mutex_t * mut = args->mut;
     // Mise en place de la gestion des signaux
     sigset_t set;
     int sig;
@@ -250,13 +286,14 @@ void *func_goal(void *arg)
     while (1)
     {
         sigwait(&set, &sig); // Attend un signal
-        gm = *(args->gm);
 
         if (sig == SIGTERM) // Termine la boucle
             break;
 
         if (sig == SIG_GOAL) // Gère la condition de vitoire
         {
+            sem_wait(sem_goal);
+            pthread_mutex_lock(mut);
             updateGameStatus(gm);
 
             if (gm->status == PROGRESS && gm->validity == VALID)
@@ -270,6 +307,9 @@ void *func_goal(void *arg)
             write(args->fdDisplay, gm->grid, 16 * sizeof(int));
             write(args->fdDisplay, &gm->score, sizeof(int));
             write(args->fdDisplay, &gm->status, sizeof(int));
+
+            pthread_mutex_unlock(mut);
+            sem_post(sem_main);
 
             pthread_kill(args->th_main, SIG_MAIN);
         }

@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <pthread.h>
 #include <signal.h>
+#include <semaphore.h>
 
 #define MAX_GAME_NB 64
 #define GRID_SIZE   4
@@ -44,7 +45,7 @@ typedef struct message
 typedef struct game_variable
 {
     pid_t          gameId;
-    int           *grid;
+    int            grid[GRID_SIZE * GRID_SIZE];
     int            score;
     char           move;
     enum VALIDITY  validity;
@@ -54,15 +55,21 @@ typedef struct game_variable
 
 typedef struct arg_moveAndScore
 {
-    game_variable **gm;
-    pthread_t       th_goal;
+    game_variable *     gm;
+    pthread_t           th_goal;
+    pthread_mutex_t *   mut;
+    sem_t *             sem_move;
+    sem_t *             sem_goal;
 } arg_moveAndScore;
 
 typedef struct arg_goal
 {
-    game_variable **gm;
-    pthread_t       th_main;
-    int             fdDisplay;
+    game_variable       *gm;
+    pthread_t           th_main;
+    int                 fdDisplay;
+    pthread_mutex_t     *mut;
+    sem_t *             sem_goal;
+    sem_t *             sem_main;
 } arg_goal;
 
 int   proc_2048(char *path);
