@@ -12,6 +12,7 @@
 #include <signal.h>
 #include <pthread.h>
 #include <stdbool.h>
+#include <sys/shm.h>
 
 /*
 Fonction représentant le processus 2048
@@ -52,6 +53,11 @@ int proc_2048(char *path)
     game_variable *gm;
     CHKNULL(gm = calloc(1, sizeof(game_variable)));
     CHKNULL(gm->grid = calloc(GRID_SIZE * GRID_SIZE, sizeof(int)));
+
+    // Création du segment de mémoire partagé
+    key_t key = ftok(SEGMENT_PATH, PROJECT_ID); // Clé
+    int shmid = shmget(key, 1024, IPC_CREAT | SHM_R | SHM_W); // Création du segment
+    char * data = shmat(shmid, (void *)0, 0); // Attachement au segment
 
     // Ouverture du pipe nommé
     int fdInput;
@@ -138,6 +144,10 @@ int proc_2048(char *path)
             free(games[i]);
         }
     }
+
+    // Fermeture du segment de mémoire partagé
+    shmdt(data);
+    shmctl(shmid, IPC_RMID, NULL);
 
     close(fdInput);      // Fermeture du pipe nommé
     close(fdDisplay[1]); // Fermeture du pipe d'écriture

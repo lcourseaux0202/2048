@@ -7,6 +7,9 @@
 #define GRID_SIZE   4
 #define OBJECTIV    2048
 
+#define SEGMENT_PATH "/bin"
+#define PROJECT_ID 29 
+
 enum MOVE
 {
     NONE = 0,
