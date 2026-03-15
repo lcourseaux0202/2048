@@ -148,6 +148,5 @@ int main()
         }
     }
     close(fd);    // fermeture du pipe
-    unlink(path); // Suppression du pipe
     return EXIT_SUCCESS;
 }

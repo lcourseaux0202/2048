@@ -24,3 +24,4 @@ run: all
 
 clean:
 	rm -rf build/* bin/*
+	rm ./pipe_move

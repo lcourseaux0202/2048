@@ -150,6 +150,7 @@ int proc_2048(char *path)
     shmctl(shmid, IPC_RMID, NULL);
 
     close(fdInput);      // Fermeture du pipe nommé
+    unlink(path); // Suppression du pipe
     close(fdDisplay[1]); // Fermeture du pipe d'écriture
     wait(NULL);          // Attente du fils (Display)
     return 0;
