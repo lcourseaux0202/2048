@@ -21,6 +21,7 @@ void stop_display(int sigrecu)
 
 int proc_display(int fdDisplay)
 {
+    printf("10");
     displaying = 1;
 
     struct sigaction sa;
@@ -32,11 +33,18 @@ int proc_display(int fdDisplay)
     game_variable *gm;
     CHKNULL(gm = calloc(1, sizeof(game_variable)));
 
+    printf("100 av: %d\n", displaying);
     while (displaying)
     {
-        if (read(fdDisplay, &gm->gameId, sizeof(pid_t)) != sizeof(pid_t)) break;
-        if (read(fdDisplay, gm->tty,64) != 64) break;
-
+    printf("100 ap: %d\n", displaying);
+        if (read(fdDisplay, &gm->gameId, sizeof(pid_t)) != sizeof(pid_t)) {
+            printf("dfzeji\n");
+            break;
+        }
+        if (read(fdDisplay, gm->tty,64) != 64) {
+            printf("dfzdesdesesdeseji\n");
+            break;
+        }
         ssize_t nb = read(fdDisplay, gm->grid, 16 * sizeof(int));
         if (nb <= 0) break;
 
@@ -48,7 +56,7 @@ int proc_display(int fdDisplay)
         if (!out)
             out = stdout; // fallback si le tty est inaccessible
 
-        fprintf(out, CLEAR); // Efface le terminal de cette instance
+        //fprintf(out, CLEAR); // Efface le terminal de cette instance
         fprintf(out, "\n\nScore : %d          Game ID : %d\n", gm->score, gm->gameId);
         fprintf(out, "|======||======||======||======|\n");
 
@@ -115,8 +123,8 @@ int proc_display(int fdDisplay)
         if (out != stdout)
             fclose(out); // Fermer le tty après chaque affichage
 
-        kill(getppid(), SIG_MAIN);
     }
+    printf("100 app: %d\n", displaying);
 
     free(gm);
     return 0;
