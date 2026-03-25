@@ -21,6 +21,7 @@ void stop_display(int sigrecu)
 
 int proc_display(int fdDisplay)
 {
+    printf("10");
     displaying = 1;
 
     struct sigaction sa;
@@ -32,6 +33,7 @@ int proc_display(int fdDisplay)
     game_variable *gm;
     CHKNULL(gm = calloc(1, sizeof(game_variable)));
 
+    printf("100 av: %d\n", displaying);
     while (displaying)
     {
         if (read(fdDisplay, &gm->gameId, sizeof(pid_t)) != sizeof(pid_t))
@@ -117,9 +119,8 @@ int proc_display(int fdDisplay)
 
         if (out != stdout)
             fclose(out); // Fermer le tty après chaque affichage
-
-        kill(getppid(), SIG_MAIN);
     }
+    printf("100 app: %d\n", displaying);
 
     free(gm);
     return 0;
