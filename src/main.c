@@ -74,7 +74,6 @@ int main()
     if (fd == -1)
     {
         perror("open pipe");
-        // kill(pid, SIGTERM);
         unlink(path);
         return EXIT_FAILURE;
     }
