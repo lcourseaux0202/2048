@@ -25,7 +25,7 @@ int proc_display(int fdDisplay)
 
     struct sigaction sa;
     sigemptyset(&sa.sa_mask);
-    sa.sa_flags   = 0;
+    sa.sa_flags = 0;
     sa.sa_handler = stop_display;
     sigaction(SIGTERM, &sa, NULL);
 
@@ -34,13 +34,16 @@ int proc_display(int fdDisplay)
 
     while (displaying)
     {
-        if (read(fdDisplay, &gm->gameId, sizeof(pid_t)) != sizeof(pid_t)) break;
-        if (read(fdDisplay, gm->tty,64) != 64) break;
+        if (read(fdDisplay, &gm->gameId, sizeof(pid_t)) != sizeof(pid_t))
+            break;
+        if (read(fdDisplay, gm->tty, 64) != 64)
+            break;
 
         ssize_t nb = read(fdDisplay, gm->grid, 16 * sizeof(int));
-        if (nb <= 0) break;
+        if (nb <= 0)
+            break;
 
-        read(fdDisplay, &gm->score,  sizeof(int));
+        read(fdDisplay, &gm->score, sizeof(int));
         read(fdDisplay, &gm->status, sizeof(int));
 
         // Chaque partie a son propre tty (/dev/pts/N)
@@ -48,7 +51,7 @@ int proc_display(int fdDisplay)
         if (!out)
             out = stdout; // fallback si le tty est inaccessible
 
-        fprintf(out, CLEAR); // Efface le terminal de cette instance
+        // fprintf(out, CLEAR); // Efface le terminal de cette instance
         fprintf(out, "\n\nScore : %d          Game ID : %d\n", gm->score, gm->gameId);
         fprintf(out, "|======||======||======||======|\n");
 
@@ -59,42 +62,42 @@ int proc_display(int fdDisplay)
                 int num = gm->grid[i * GRID_SIZE + j];
                 switch (num)
                 {
-                    case 2:
-                        fprintf(out, "|   " GREEN  "%d" DEFAULT "  |", num);
-                        break;
-                    case 4:
-                        fprintf(out, "|   " YELLOW "%d" DEFAULT "  |", num);
-                        break;
-                    case 8:
-                        fprintf(out, "|   " BLUE   "%d" DEFAULT "  |", num);
-                        break;
-                    case 16:
-                        fprintf(out, "|  " PURPLE  "%d" DEFAULT "  |", num);
-                        break;
-                    case 32:
-                       fprintf(out, "|  " CYAN    "%d" DEFAULT "  |", num);
-                       break;
-                    case 64:
-                       fprintf(out, "|  " WHITE   "%d" DEFAULT "  |", num);
-                       break;
-                    case 128:
-                       fprintf(out, "|  " RED     "%d" DEFAULT " |", num);
-                       break;
-                    case 256:
-                       fprintf(out, "|  " GREEN   "%d" DEFAULT " |", num);
-                       break;
-                    case 512:
-                       fprintf(out, "|  " YELLOW  "%d" DEFAULT " |", num);
-                       break;
-                    case 1024:
-                       fprintf(out, "| " BLUE     "%d" DEFAULT " |", num);
-                       break;
-                    case 2048:
-                       fprintf(out, "| " PURPLE   "%d" DEFAULT " |", num);
-                       break;
-                    default:
-                       fprintf(out, "|      |");
-                       break;
+                case 2:
+                    fprintf(out, "|   " GREEN "%d" DEFAULT "  |", num);
+                    break;
+                case 4:
+                    fprintf(out, "|   " YELLOW "%d" DEFAULT "  |", num);
+                    break;
+                case 8:
+                    fprintf(out, "|   " BLUE "%d" DEFAULT "  |", num);
+                    break;
+                case 16:
+                    fprintf(out, "|  " PURPLE "%d" DEFAULT "  |", num);
+                    break;
+                case 32:
+                    fprintf(out, "|  " CYAN "%d" DEFAULT "  |", num);
+                    break;
+                case 64:
+                    fprintf(out, "|  " WHITE "%d" DEFAULT "  |", num);
+                    break;
+                case 128:
+                    fprintf(out, "|  " RED "%d" DEFAULT " |", num);
+                    break;
+                case 256:
+                    fprintf(out, "|  " GREEN "%d" DEFAULT " |", num);
+                    break;
+                case 512:
+                    fprintf(out, "|  " YELLOW "%d" DEFAULT " |", num);
+                    break;
+                case 1024:
+                    fprintf(out, "| " BLUE "%d" DEFAULT " |", num);
+                    break;
+                case 2048:
+                    fprintf(out, "| " PURPLE "%d" DEFAULT " |", num);
+                    break;
+                default:
+                    fprintf(out, "|      |");
+                    break;
                 }
             }
             fprintf(out, "\n|======||======||======||======|\n");

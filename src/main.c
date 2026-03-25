@@ -60,18 +60,15 @@ int main()
         {
             return proc_2048(path);
         }
-        else // Processus père
-        {
-            // Configuration du sigaction pour stopper le programme proprement
-            struct sigaction sa;
-            memset(&sa, 0, sizeof(sa));
-            sa.sa_handler = stop_running;
-            sigemptyset(&sa.sa_mask);
-            sa.sa_flags = 0;
-            sigaction(SIGTERM, &sa, NULL);
-            sigaction(SIGINT, &sa, NULL);
-        }
     }
+
+    struct sigaction sa;
+    memset(&sa, 0, sizeof(sa));
+    sa.sa_handler = stop_running;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = 0;
+    sigaction(SIGTERM, &sa, NULL);
+    sigaction(SIGINT, &sa, NULL);
 
     int fd = open(path, O_WRONLY);
     if (fd == -1)
@@ -84,7 +81,7 @@ int main()
 
     message mStart;
     mStart.gameId = getpid();
-    mStart.move   = START;
+    mStart.move = START;
 
     char *ttyPath = ttyname(STDIN_FILENO); // ex: /dev/pts/3
     if (ttyPath)
@@ -108,7 +105,7 @@ int main()
         char c = getch();
         message m;
         m.gameId = getpid();
-        m.move   = NONE;
+        m.move = NONE;
 
         if (c == 27) // flèches
         {
@@ -133,7 +130,7 @@ int main()
         }
         else if (c == 'q')
         {
-            m.move = QUIT;
+            break;
         }
 
         if (m.move != NONE)
@@ -147,6 +144,15 @@ int main()
             }
         }
     }
-    close(fd);    // fermeture du pipe
+
+    message mQuit;
+    mQuit.gameId = getpid();
+    mQuit.move = QUIT;
+    strncpy(mQuit.tty, mStart.tty, sizeof(mQuit.tty) - 1);
+
+    printf("Main : envoi du message de fin\n");
+    write(fd, &mQuit, sizeof(mQuit));
+
+    close(fd); // fermeture du pipe
     return EXIT_SUCCESS;
 }
