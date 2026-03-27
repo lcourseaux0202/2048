@@ -173,9 +173,17 @@ int proc_2048(char *path)
     sem_post(&sem_goal);
     sem_post(&sem_main);
 
+
+
+    pthread_cancel(th_moveAndScore);
+    pthread_cancel(th_goal);
+    pthread_join(th_moveAndScore, NULL);
+    pthread_join(th_goal, NULL);
+
+
     // Arrêt propre
-    pthread_kill(th_moveAndScore, SIGTERM);
-    pthread_kill(th_goal, SIGTERM);
+    //pthread_kill(th_moveAndScore, SIGTERM);
+    //pthread_kill(th_goal, SIGTERM);
     kill(pidDisplay, SIGTERM);
 
     // printf("Threads en attente\n");
@@ -208,15 +216,19 @@ int proc_2048(char *path)
     sem_destroy(&sem_goal);
     sem_destroy(&sem_main);
 
+
+    printf("Fermeture du pipe d'affichage\n");
+    close(fdDisplay[1]); // Fermeture du pipe d'écriture
+    wait(NULL);          // Attente du fils (Display)
+
+
     printf("Fermeture du pipe nommé\n");
     close(fdInput); // Fermeture du pipe nommé
     printf("Suppression du pipe nommé\n");
     unlink(path); // Suppression du pipe
     printf("Pipe nommé supprimé\n");
 
-    printf("Fermeture du pipe d'affichage\n");
-    close(fdDisplay[1]); // Fermeture du pipe d'écriture
-    wait(NULL);          // Attente du fils (Display)
+    printf("Tout supprimé\n");
     return 0;
 }
 
