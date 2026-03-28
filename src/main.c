@@ -40,8 +40,15 @@ char getch()
     return c;
 }
 
-int main()
+int main(int argc, char *argv[])
 {
+    if (argc < 2)
+    {
+        printf("%s: N\nN = nombre de parties\n", argv[0]);
+        return EXIT_FAILURE;
+    }
+    int nb_games = atoi(argv[1]);
+
     char *path = "./pipe_move";
 
     if (access(path, F_OK) != 0) // https://stackoverflow.com/questions/230062/whats-the-best-way-to-check-if-a-file-exists-in-c
@@ -58,7 +65,7 @@ int main()
 
         if (pid == 0) // Processus fils
         {
-            return proc_2048(path);
+            return proc_2048(path, nb_games);
         }
     }
 

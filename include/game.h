@@ -55,23 +55,40 @@ typedef struct game_variable
 
 typedef struct arg_moveAndScore
 {
-    game_variable *gm;
+    game_variable *sharredGames;
     pthread_t th_goal;
     pthread_mutex_t *mut;
     sem_t *sem_move;
     sem_t *sem_goal;
+    int *index;
 } arg_moveAndScore;
 
 typedef struct arg_goal
 {
-    game_variable *gm;
+    game_variable *sharredGames;
     pthread_t th_main;
     int fdDisplay;
     pthread_mutex_t *mut;
     sem_t *sem_goal;
     sem_t *sem_main;
+    int *index;
 } arg_goal;
 
-int proc_2048(char *path);
+typedef struct session
+{
+    game_variable gm;
+    game_variable *shm;
+    int shmid;
+
+    pthread_t th_move;
+    pthread_t th_goal;
+
+    pthread_mutex_t *mut;
+    sem_t *sem_main;
+    sem_t *sem_move;
+    sem_t *sem_goal;
+} session;
+
+int proc_2048(char *path, int nb_games);
 void *func_moveAndScore(void *arg);
 void *func_goal(void *arg);
