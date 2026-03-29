@@ -155,7 +155,6 @@ int main(int argc, char *argv[])
     mQuit.move = QUIT;
     strncpy(mQuit.tty, mStart.tty, sizeof(mQuit.tty) - 1);
 
-    printf("Main : envoi du message de fin\n");
     write(fd, &mQuit, sizeof(mQuit));
 
     close(fd); // fermeture du pipe
