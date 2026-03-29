@@ -51,7 +51,7 @@ int proc_display(int fdDisplay)
         if (!out)
             out = stdout; // fallback si le tty est inaccessible
 
-        // fprintf(out, CLEAR); // Efface le terminal de cette instance
+        fprintf(out, CLEAR); // Efface le terminal de cette instance
         fprintf(out, "\n\nScore : %d          Game ID : %d\n", gm->score, gm->gameId);
         fprintf(out, "|======||======||======||======|\n");
 

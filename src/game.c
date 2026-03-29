@@ -31,11 +31,9 @@ int proc_2048(char *path, int nb_games)
 {
     srand(time(NULL));
     // Création du pipe annonyme pour l'affichage
-    printf("Création du pipe annonyme d'affichage\n");
     int fdDisplay[2];
     CHKERR(pipe(fdDisplay));
 
-    printf("Lancement de processus display\n");
     pid_t pidDisplay = fork();
 
     if (pidDisplay == 0) // Processus fils
@@ -50,7 +48,6 @@ int proc_2048(char *path, int nb_games)
     // Processus père
     close(fdDisplay[0]); // Fermeture du pipe de lecture
 
-    printf("Allocation mémoire des parties\n");
     game_variable *games[nb_games];
     for (int i = 0; i < nb_games; i++)
     {
@@ -61,7 +58,6 @@ int proc_2048(char *path, int nb_games)
     game_variable *gm;
 
     // Création du segment de mémoire partagé
-    printf("Création du segment de mémoire partagé\n");
     key_t key = ftok(SEGMENT_PATH, PROJECT_ID);
     if (key == -1)
     {
@@ -90,11 +86,9 @@ int proc_2048(char *path, int nb_games)
     }
 
     // Création du mutex
-    printf("Création du mutex\n");
     pthread_mutex_t mut = PTHREAD_MUTEX_INITIALIZER;
 
     // Création des sémaphores
-    printf("Création des sémaphores\n");
     sem_t sem_move;
     sem_t sem_goal;
     sem_t sem_main;
@@ -121,7 +115,6 @@ int proc_2048(char *path, int nb_games)
     sigaction(SIGINT, &sa, NULL);
 
     // Création des threads
-    printf("Création des threads\n");
 
     pthread_t th_moveAndScore = 0, th_goal = 0;
     int *thread_index = malloc(sizeof(int));
@@ -144,7 +137,6 @@ int proc_2048(char *path, int nb_games)
 
     pthread_sigmask(SIG_BLOCK, &set, NULL);
 
-    printf("Lancement de la boucle principale\n");
     message m;
 
     while (read(fdInput, &m, sizeof(m)) == sizeof(m))
@@ -167,21 +159,16 @@ int proc_2048(char *path, int nb_games)
             }
             continue;
         }
-        printf("Récupération de la partie\n");
         int index = getGame(games, m.gameId, nb_games);
         if (index == -1)
         {
-            printf("Partie introuvable\n");
             continue;
         }
-        printf("Partie trouvée : %d\n", index);
         gm = games[index];
         if (gm != NULL)
         {
-            printf("gm n'est pas nulle\n");
             if (m.move == QUIT || gm->status != PROGRESS)
             {
-                printf("Terminer une partie\n");
                 kill(m.gameId, SIGTERM);
 
                 // Recherche de la partie à libérer
@@ -196,8 +183,6 @@ int proc_2048(char *path, int nb_games)
                     }
                 }
 
-                printf("Suppression d'une partie, gcount = %d\n", gcount);
-
                 if (gcount > 0)
                     continue;
                 else
@@ -208,24 +193,19 @@ int proc_2048(char *path, int nb_games)
 
             // Copie de la partie dans shm
             pthread_mutex_lock(&mut);
-            printf("Copie de la partie dans shm\n");
             memcpy(&sharredGames[index], gm, sizeof(game_variable));
-            printf("Copie réussie\n");
             *thread_index = index;
             pthread_mutex_unlock(&mut);
             sem_post(&sem_move);
 
             // Recopie de la partie du shm
-            printf("Recopie de la partie dans shm\n");
             sem_wait(&sem_main);
             pthread_mutex_lock(&mut);
             memcpy(gm, &sharredGames[index], sizeof(game_variable));
             pthread_mutex_unlock(&mut);
         }
     }
-    printf("Terminaison du programme\n");
 
-    printf("Libération des sémaphores\n");
     sem_post(&sem_move);
     sem_post(&sem_goal);
     sem_post(&sem_main);
@@ -249,7 +229,6 @@ int proc_2048(char *path, int nb_games)
     // printf("Threads récupérés\n");
 
     // Libération des parties
-    printf("Libération des parties\n");
     for (int i = 0; i < gcount; i++)
     {
         if (games[i])
@@ -257,31 +236,23 @@ int proc_2048(char *path, int nb_games)
     }
 
     // Fermeture du segment de mémoire partagé
-    printf("Fermeture du segment de mémoire partagé\n");
     shmdt(sharredGames);
     shmctl(shmid, IPC_RMID, NULL);
 
     // Suppression du mutex
-    printf("Destruction du mutex\n");
     pthread_mutex_destroy(&mut);
 
     // Suppression des sémapores
-    printf("Destruction des sémaphores\n");
     sem_destroy(&sem_move);
     sem_destroy(&sem_goal);
     sem_destroy(&sem_main);
 
-    printf("Fermeture du pipe d'affichage\n");
     close(fdDisplay[1]); // Fermeture du pipe d'écriture
     wait(NULL);          // Attente du fils (Display)
 
-    printf("Fermeture du pipe nommé\n");
     close(fdInput); // Fermeture du pipe nommé
-    printf("Suppression du pipe nommé\n");
-    unlink(path); // Suppression du pipe
-    printf("Pipe nommé supprimé\n");
+    unlink(path);   // Suppression du pipe
 
-    printf("Tout supprimé\n");
     return 0;
 }
 
@@ -355,7 +326,11 @@ void *func_moveAndScore(void *arg)
         pthread_mutex_lock(mut);
 
         int i = *args->index;
-        args->sharredGames[i].validity = executeMove(args->sharredGames[i].grid, args->sharredGames[i].move, GRID_SIZE, &args->sharredGames[i].score);
+        args->sharredGames[i].validity = executeMove(
+            args->sharredGames[i].grid,
+            args->sharredGames[i].move,
+            GRID_SIZE,
+            &args->sharredGames[i].score);
 
         pthread_mutex_unlock(mut);
         sem_post(sem_goal);

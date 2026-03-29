@@ -51,9 +51,8 @@ int main(int argc, char *argv[])
 
     char *path = "./pipe_move";
 
-    if (access(path, F_OK) != 0) // https://stackoverflow.com/questions/230062/whats-the-best-way-to-check-if-a-file-exists-in-c
+    if (access(path, F_OK) != 0)
     {
-        // Si le pipe n'existe pas : création du pipe nommé + lancement de proc_2048
         if (mkfifo(path, 0666) == -1 && errno != EEXIST)
         {
             perror("mkfifo");
@@ -63,7 +62,7 @@ int main(int argc, char *argv[])
         pid_t pid = fork();
         CHKERR(pid);
 
-        if (pid == 0) // Processus fils
+        if (pid == 0)
         {
             return proc_2048(path, nb_games);
         }
@@ -80,8 +79,8 @@ int main(int argc, char *argv[])
     int fd = open(path, O_WRONLY);
     if (fd == -1)
     {
-        perror("open pipe");
         unlink(path);
+        perror("open pipe");
         return EXIT_FAILURE;
     }
 
