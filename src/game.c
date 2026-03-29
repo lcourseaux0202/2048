@@ -379,10 +379,10 @@ void *func_goal(void *arg)
 
     // pthread_sigmask(SIG_BLOCK, &set, NULL);
 
-    pthread_mutex_lock(mut);
+    //pthread_mutex_lock(mut);
     // Envoi au proc_display : gameId + tty + grille + score + status
 
-    pthread_mutex_unlock(mut);
+    //pthread_mutex_unlock(mut);
     while (1)
     {
         // sigwait(&set, &sig); // Attend un signal
